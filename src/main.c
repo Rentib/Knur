@@ -28,5 +28,7 @@ main(/* int argc, char *argv[] */)
 
   init_bitboards();
 
+  free_bitboards();
+
   return EXIT_SUCCESS;
 }

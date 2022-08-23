@@ -40,11 +40,13 @@ typedef struct Magic {
 
 static U64 get_bishop_attacks(Square sq, U64 occ);
 static U64 get_rook_attacks(Square sq, U64 occ);
+static inline U64 magic_hash(Magic *m, U64 occ);
 static void mask_king_attacks(Square sq);
 static void mask_knight_attacks(Square sq);
 static void mask_pawn_attacks(Square sq);
 static void mask_relevant_bishop_occupancy(Square sq);
 static void mask_relevant_rook_occupancy(Square sq);
+static U64 mask_state(U64 mask, unsigned idx);
 static U64 slide(Direction dir, Square sq, U64 occ);
 
 const U64 Rank8BB = 0xFFULL;
@@ -71,6 +73,12 @@ static U64 knight_attacks[64];  /* [Square] */
 static U64 king_attacks[64];    /* [Square] */
 static Magic BishopMagics[64];  /* [Square] */
 static Magic RookMagics[64];    /* [Square] */
+
+void
+free_bitboards(void)
+{
+
+}
 
 static U64
 get_bishop_attacks(Square sq, U64 occ)
@@ -101,6 +109,14 @@ init_bitboards(void)
     mask_relevant_bishop_occupancy(sq);
     mask_relevant_rook_occupancy(sq);
   }
+}
+
+static inline U64
+magic_hash(Magic *m, U64 occ)
+{
+  occ &= m->relevant;
+  occ *= m->magic;
+  return occ >> (64 - m->shift);
 }
 
 static void
@@ -151,6 +167,20 @@ mask_relevant_rook_occupancy(Square sq)
            | (slide(WEST,  sq, 0ULL) & ~FileABB);
   RookMagics[sq].relevant = mask;
   RookMagics[sq].shift = POPCOUNT(mask);
+}
+
+static U64
+mask_state(U64 mask, unsigned idx)
+{
+  U64 res = 0ULL;
+  Square sq;
+  int bit;
+  for (bit = 0; mask; bit++) {
+    sq = pop_lsb(&mask);
+    if ((1 << bit) & idx)
+      SET_BIT(res, sq);
+  }
+  return res;
 }
 
 void

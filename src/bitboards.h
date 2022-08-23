@@ -28,6 +28,7 @@
 #define GET_BITBOARD(square)         (1ULL << (square))
 #define GET_SQUARE(bitboard)         ((Square)(__builtin_ctzll(bitboard)))
 #define POPCOUNT(bitboard)           (__builtin_popcountll(bitboard))
+#define LSB(bitboard)                ((bitboard) & -(bitboard))
 
 typedef uint64_t U64;
 
@@ -49,8 +50,17 @@ extern const U64 FileFBB;
 extern const U64 FileGBB;
 extern const U64 FileHBB;
 
+void free_bitboards(void);
 void init_bitboards(void);
 void print_mask(U64 mask);
 U64 shift(Direction dir, U64 mask);
+
+inline Square
+pop_lsb(U64 *mask)
+{
+  U64 x = LSB(*mask);
+  *mask ^= x;
+  return GET_SQUARE(x);
+}
 
 #endif /* KNUR_BITBOARDS_H_ */
