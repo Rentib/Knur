@@ -40,7 +40,8 @@ typedef struct Magic {
 
 static U64 get_bishop_attacks(Square sq, U64 occ);
 static U64 get_rook_attacks(Square sq, U64 occ);
-static inline U64 magic_hash(Magic *m, U64 occ);
+static void look_for_magic(PieceType pt, Square sq);
+static inline unsigned magic_hash(Magic *m, U64 occ);
 static void mask_king_attacks(Square sq);
 static void mask_knight_attacks(Square sq);
 static void mask_pawn_attacks(Square sq);
@@ -77,7 +78,11 @@ static Magic RookMagics[64];    /* [Square] */
 void
 free_bitboards(void)
 {
-
+  Square sq;
+  for (sq = SQ_A8; sq <= SQ_H1; sq++) {
+    free(RookMagics[sq].attacks);
+    free(BishopMagics[sq].attacks);
+  }
 }
 
 static U64
@@ -108,10 +113,43 @@ init_bitboards(void)
     mask_pawn_attacks(sq);
     mask_relevant_bishop_occupancy(sq);
     mask_relevant_rook_occupancy(sq);
+    look_for_magic(BISHOP, sq);
+    look_for_magic(  ROOK, sq);
   }
 }
 
-static inline U64
+static void
+look_for_magic(PieceType pt, Square sq)
+{
+  Magic *m = (pt == ROOK ? &RookMagics[sq] : &BishopMagics[sq]);
+  unsigned i, size = 1 << m->shift, rndcnt, hash;
+  unsigned checked[size];
+  U64 occupancy[size];
+  U64 attacks[size];
+
+  m->attacks = ecalloc(size, sizeof(U64));
+
+  for (i = 0; i < size; checked[i++] = 0) {
+    occupancy[i] = mask_state(m->relevant, i);
+    attacks[i] = (pt == ROOK ?   get_rook_attacks(sq, occupancy[i])
+                             : get_bishop_attacks(sq, occupancy[i]));
+  }
+
+  for (i = 0, rndcnt = 1; i < size; rndcnt++) {
+    for (m->magic = 0; POPCOUNT((m->magic * m->relevant) >> 56) < 6; )
+      m->magic = rand_sparse_u64();
+    for (i = 0; i < size; i++) {
+      hash = magic_hash(m, occupancy[i]);
+      if (checked[hash] < rndcnt) {
+        checked[hash] = rndcnt;
+        m->attacks[hash] = attacks[i];
+      } else if (m->attacks[hash] != attacks[i])
+        break;
+    }
+  }
+}
+
+static inline unsigned
 magic_hash(Magic *m, U64 occ)
 {
   occ &= m->relevant;
