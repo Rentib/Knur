@@ -21,6 +21,10 @@
 
 #include <stdlib.h>
 
+#define MAX(a, b)        ((a) > (b) ? (a) : (b))
+#define MIN(a, b)        ((a) < (b) ? (a) : (b))
+#define LENGTH(X)        (sizeof X / sizeof X[0])
+
 void die(const char *fmt, ...);
 void *ecalloc(size_t nitems, size_t size);
 void *emalloc(size_t size);
