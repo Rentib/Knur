@@ -22,6 +22,7 @@
 #include <stdlib.h>
 
 void die(const char *fmt, ...);
+void *ecalloc(size_t nitems, size_t size);
 void *emalloc(size_t size);
 
 #endif /* KNUR_UTIL_H_ */

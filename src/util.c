@@ -20,6 +20,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "util.h"
+
 void
 die(const char *fmt, ...)
 {
@@ -32,6 +34,15 @@ die(const char *fmt, ...)
   fputc('\n', stderr);
 
   exit(1);
+}
+
+void *
+ecalloc(size_t nitems, size_t size)
+{
+  void *p;
+  if (!(p = calloc(nitems, size)))
+    die("Knut: cannot allocate memory");
+  return p;
 }
 
 void *
