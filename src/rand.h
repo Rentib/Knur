@@ -22,7 +22,6 @@
 #include <stdint.h>
 
 uint64_t rand_sparse_u64(void);
-uint32_t rand_u32(void);
 uint64_t rand_u64(void);
 
 #endif /* KNUR_RAND_H_ */

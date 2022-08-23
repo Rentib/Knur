@@ -20,7 +20,11 @@
 
 #include "rand.h"
 
-static uint64_t state = 0xfab15ae89128af81ULL;
+/* ~122ms magic number generation */
+static struct {
+  uint64_t a;
+  uint64_t b;
+} state = { 0x7E5B49327CDD086DULL, 0x640BC27E82D1C729ULL };
 
 uint64_t
 rand_sparse_u64(void)
@@ -28,21 +32,14 @@ rand_sparse_u64(void)
   return rand_u64() & rand_u64() & rand_u64();
 }
 
-uint32_t
-rand_u32(void)
-{
-  uint32_t x = state;
-  x ^= x >> 13;
-  x ^= x << 17;
-  x ^= x >> 5;
-  return state = x;
-}
-
+/* xorshiro */
 uint64_t
 rand_u64(void)
 {
-  return (uint64_t)(rand_u32() & 0xFFFF) << 0
-       | (uint64_t)(rand_u32() & 0xFFFF) << 16
-       | (uint64_t)(rand_u32() & 0xFFFF) << 32
-       | (uint64_t)(rand_u32() & 0xFFFF) << 48;
+    uint64_t a = state.a, b = state.b;
+    uint64_t res = a + b;
+    b ^= a;
+    state.a = ((a << 55) | (a >> 9)) ^ b ^ (b << 14);
+    state.b = (b << 36) | (b >> 28);
+    return res;
 }
