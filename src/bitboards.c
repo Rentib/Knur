@@ -29,17 +29,20 @@
 
 /** \typedef Magic
  * Defines structure Magic.
- * \struct Magic
+ */
+typedef struct Magic Magic;
+
+/** \struct Magic
  * A structure for storing fancy magics.
  */
-typedef struct Magic {
+struct Magic {
   /**{*/
-  U64      relevant; /**< Mask of relevant bits. */
-  U64      magic;    /**< Magic number. */
-  U64     *attacks;  /**< Dynamic array of attacks. */
+  U64      relevant; /**< Mask of relevant bits; */
+  U64      magic;    /**< Magic number; */
+  U64     *attacks;  /**< Dynamic array of attacks; */
   unsigned shift;    /**< Number of relevant bits. */
   /**}*/
-} Magic;
+};
 
 static U64 get_bishop_attacks(Square sq, U64 occ);
 static U64 get_rook_attacks(Square sq, U64 occ);
