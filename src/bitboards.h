@@ -27,6 +27,7 @@
 #define SET_BIT(bitboard, square)    ((bitboard) |= (1ULL << (square)))
 #define GET_BITBOARD(square)         (1ULL << (square))
 #define GET_SQUARE(bitboard)         ((Square)(__builtin_ctzll(bitboard)))
+#define POPCOUNT(bitboard)           (__builtin_popcountll(bitboard))
 
 typedef uint64_t U64;
 
@@ -49,7 +50,7 @@ extern const U64 FileGBB;
 extern const U64 FileHBB;
 
 void init_bitboards(void);
-void print_mask(U64);
-U64 shift(Direction, U64);
+void print_mask(U64 mask);
+U64 shift(Direction dir, U64 mask);
 
 #endif /* KNUR_BITBOARDS_H_ */

@@ -21,10 +21,28 @@
 
 #include "bitboards.h"
 #include "knur.h"
+#include "util.h"
 
-static void mask_king_attacks(Square);
-static void mask_knight_attacks(Square);
-static void mask_pawn_attacks(Square);
+/** \typedef Magic
+ * Defines structure Magic.
+ * \struct Magic
+ * A structure for storing fancy magics.
+ */
+typedef struct Magic {
+  /**{*/
+  U64      relevant; /**< Mask of relevant bits. */
+  U64      magic;    /**< Magic number. */
+  U64     *attacks;  /**< Dynamic array of attacks. */
+  unsigned shift;    /**< Number of relevant bits. */
+  /**}*/
+} Magic;
+
+static void mask_king_attacks(Square sq);
+static void mask_knight_attacks(Square sq);
+static void mask_pawn_attacks(Square sq);
+static void mask_relevant_bishop_occupancy(Square sq);
+static void mask_relevant_rook_occupancy(Square sq);
+static U64 slide(Direction dir, Square sq, U64 occ);
 
 const U64 Rank8BB = 0xFFULL;
 const U64 Rank7BB = Rank8BB << 8;
@@ -44,9 +62,12 @@ const U64 FileFBB = FileEBB << 1;
 const U64 FileGBB = FileFBB << 1;
 const U64 FileHBB = FileGBB << 1;
 
+/* lookup tables */
 static U64 pawn_attacks[2][64]; /* [Color][Square] */
 static U64 knight_attacks[64];  /* [Square] */
 static U64 king_attacks[64];    /* [Square] */
+static Magic BishopMagics[64];  /* [Square] */
+static Magic RookMagics[64];    /* [Square] */
 
 void
 init_bitboards(void)
@@ -56,8 +77,8 @@ init_bitboards(void)
     mask_king_attacks(sq);
     mask_knight_attacks(sq);
     mask_pawn_attacks(sq);
-    print_mask(king_attacks[sq]);
-    getchar();
+    mask_relevant_bishop_occupancy(sq);
+    mask_relevant_rook_occupancy(sq);
   }
 }
 
@@ -89,6 +110,28 @@ mask_king_attacks(Square sq)
   king_attacks[sq] = (shift(NORTH, bb) | bb | shift(SOUTH, bb)) & ~mask;
 }
 
+static void
+mask_relevant_bishop_occupancy(Square sq)
+{
+  U64 mask = (slide(NORTH_EAST, sq, 0ULL) & ~(Rank8BB | FileHBB))
+           | (slide(SOUTH_EAST, sq, 0ULL) & ~(Rank1BB | FileHBB))
+           | (slide(SOUTH_WEST, sq, 0ULL) & ~(Rank1BB | FileABB))
+           | (slide(NORTH_WEST, sq, 0ULL) & ~(Rank8BB | FileABB));
+  BishopMagics[sq].relevant = mask;
+  BishopMagics[sq].shift = POPCOUNT(mask);
+}
+
+static void
+mask_relevant_rook_occupancy(Square sq)
+{
+  U64 mask = (slide(NORTH, sq, 0ULL) & ~Rank8BB)
+           | (slide(EAST,  sq, 0ULL) & ~FileHBB)
+           | (slide(SOUTH, sq, 0ULL) & ~Rank1BB)
+           | (slide(WEST,  sq, 0ULL) & ~FileABB);
+  RookMagics[sq].relevant = mask;
+  RookMagics[sq].shift = POPCOUNT(mask);
+}
+
 void
 print_mask(U64 bb)
 {
@@ -105,19 +148,28 @@ print_mask(U64 bb)
 }
 
 U64
-shift(Direction D, U64 bb)
+shift(Direction dir, U64 mask)
 {
-  switch (D) {
-  case NORTH:       return bb >> 8;
-  case NORTH_NORTH: return bb >> 16;
-  case SOUTH:       return bb << 8;
-  case SOUTH_SOUTH: return bb << 16;
-  case WEST:        return (bb & ~FileABB) >> 1;
-  case EAST:        return (bb & ~FileHBB) << 1;
-  case NORTH_WEST:  return (bb & ~FileABB) >> 9;
-  case NORTH_EAST:  return (bb & ~FileHBB) >> 7;
-  case SOUTH_WEST:  return (bb & ~FileABB) << 7;
-  case SOUTH_EAST:  return (bb & ~FileHBB) << 9;
+  switch (dir) {
+  case NORTH:       return mask >> 8;
+  case NORTH_NORTH: return mask >> 16;
+  case SOUTH:       return mask << 8;
+  case SOUTH_SOUTH: return mask << 16;
+  case WEST:        return (mask & ~FileABB) >> 1;
+  case EAST:        return (mask & ~FileHBB) << 1;
+  case NORTH_WEST:  return (mask & ~FileABB) >> 9;
+  case NORTH_EAST:  return (mask & ~FileHBB) >> 7;
+  case SOUTH_WEST:  return (mask & ~FileABB) << 7;
+  case SOUTH_EAST:  return (mask & ~FileHBB) << 9;
   default: return 0ULL;
   }
+}
+
+static U64
+slide(Direction dir, Square sq, U64 occ)
+{
+  U64 res = 0ULL, mask = GET_BITBOARD(sq);
+  while ((mask = shift(dir, mask) & ~occ))
+    res |= mask;
+  return res;
 }
