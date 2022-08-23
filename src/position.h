@@ -19,8 +19,12 @@
 #ifndef KNUR_POSITION_H_
 #define KNUR_POSITION_H_
 
+#include <stdint.h>
+
 #include "bitboards.h"
 #include "knur.h"
+
+typedef uint64_t Key;
 
 /** \typedef State
  * Defines structure State.
@@ -57,10 +61,12 @@ struct Position {
   Square    ksq[2];      /**< [Color] Square of WHITE and BLACK king; */
   int       game_ply;    /**< PLY of game; */
   int       ply;         /**< PLY of search; */
+  Key       key;
   State    *st;          /**< Position state. */
 };
 
 void pos_print(const Position *pos);
 void pos_set(Position *pos, const char *fen);
+void zobrist_init(void);
 
 #endif /* KNUR_POSITION_H_ */

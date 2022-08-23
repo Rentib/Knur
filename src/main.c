@@ -20,15 +20,15 @@
 #include <stdlib.h>
 
 #include "bitboards.h"
+#include "position.h"
 
 int
 main(/* int argc, char *argv[] */)
 {
   printf("Knur by Stanisław Bitner\n");
-
   bitboards_init();
+  zobrist_init();
 
   bitboards_free();
-
   return EXIT_SUCCESS;
 }

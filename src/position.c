@@ -17,11 +17,13 @@
 */
 
 #include <ctype.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #include "bitboards.h"
 #include "knur.h"
 #include "position.h"
+#include "rand.h"
 #include "util.h"
 
 static inline void add_enpas(Position *pos, Square sq);
@@ -30,9 +32,17 @@ static inline void rem_enpas(Position *pos);
 static inline void rem_piece(Position *pos, PieceType pt, Color c, Square sq);
 static inline void flip_furn(Position *pos);
 
+static struct {
+  Key turn;
+  Key piece[2][6][64];
+  Key castle[16];
+  Key enpas[8];
+} zobrist;
+
 static inline void
 add_enpas(Position *pos, Square sq)
 {
+  pos->key ^= zobrist.enpas[sq & 7];
   pos->st->enpas = sq;
 }
 
@@ -40,6 +50,7 @@ static inline void
 add_piece(Position *pos, PieceType pt, Color c, Square sq)
 {
   U64 bb = GET_BITBOARD(sq);
+  pos->key ^= zobrist.piece[c][pt][sq];
   pos->color[c] |= bb;
   pos->piece[pt] |= bb;
   pos->board[sq] = pt;
@@ -48,14 +59,17 @@ add_piece(Position *pos, PieceType pt, Color c, Square sq)
 static inline void
 rem_enpas(Position *pos)
 {
-  if (pos->st->enpas != SQ_NONE)
+  if (pos->st->enpas != SQ_NONE) {
+    pos->key ^= zobrist.enpas[pos->st->enpas & 7];
     pos->st->enpas = SQ_NONE;
+  }
 }
 
 static inline void
 rem_piece(Position *pos, PieceType pt, Color c, Square sq)
 {
   U64 bb = GET_BITBOARD(sq);
+  pos->key ^= zobrist.piece[c][pt][sq];
   pos->color[c] ^= bb;
   pos->piece[pt] ^= bb;
   pos->board[sq] = NONE;
@@ -64,6 +78,7 @@ rem_piece(Position *pos, PieceType pt, Color c, Square sq)
 static inline void
 flip_furn(Position *pos)
 {
+  pos->key ^= zobrist.turn;
   pos->turn ^= 1;
 }
 
@@ -102,6 +117,7 @@ pos_print(const Position *pos)
   printf("    Castling:       %c%c%c%c\n",
       pos->st->castle & 4 ? 'K' : '-', pos->st->castle & 1 ? 'Q' : '-',
       pos->st->castle & 8 ? 'k' : '-', pos->st->castle & 2 ? 'q' : '-');
+  printf("    Hash key:       %lu\n", pos->key);
 }
 
 void
@@ -168,6 +184,7 @@ pos_set(Position *pos, const char *fen)
     default: break;
     }
   }
+  pos->key ^= zobrist.castle[pos->st->castle];
 
   if (*(++fen) != '-') {
     f = fen[0] - 'a';
@@ -177,4 +194,18 @@ pos_set(Position *pos, const char *fen)
 
   /* TODO */
   /* fifty move rule */
+}
+
+void
+zobrist_init(void)
+{
+  unsigned i, j, k;
+  for (i = 0; i < 2; i++)
+    for (j = 0; j < 6; j++)
+      for (k = 0; k < 64; k++)
+        zobrist.piece[i][j][k] = rand_u64();
+  for (i = 0; i < 16; i++)
+    zobrist.castle[i] = rand_u64();
+  for (i = 0; i < 8; i++)
+    zobrist.enpas[i] = rand_u64();
 }
