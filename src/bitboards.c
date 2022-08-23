@@ -79,6 +79,8 @@ init_bitboards(void)
     mask_pawn_attacks(sq);
     mask_relevant_bishop_occupancy(sq);
     mask_relevant_rook_occupancy(sq);
+    print_mask(knight_attacks[sq]);
+    getchar();
   }
 }
 
@@ -138,13 +140,16 @@ print_mask(U64 bb)
   Square sq = SQ_A8;
   Rank r;
   File f;
-  const char *sep = "+---+---+---+---+---+---+---+---+";
+  const char *sep = "  +---+---+---+---+---+---+---+---+";
   printf("%s\n", sep);
   for (r = Rank8; r >= Rank1; r--) {
+    printf("%d ", r + 1);
     for (f = FileA; f <= FileH; f++)
       printf("| %c ", GET_BIT(bb, sq++) ? 'X' : ' ');
     printf("|\n%s\n", sep);
   }
+  printf("    a   b   c   d   e   f   g   h\n\n");
+  printf("    Bitboard: %lu\n", bb);
 }
 
 U64
