@@ -21,6 +21,7 @@
 
 #include "bitboards.h"
 #include "knur.h"
+#include "rand.h"
 #include "util.h"
 
 /** \typedef Magic
@@ -37,6 +38,8 @@ typedef struct Magic {
   /**}*/
 } Magic;
 
+static U64 get_bishop_attacks(Square sq, U64 occ);
+static U64 get_rook_attacks(Square sq, U64 occ);
 static void mask_king_attacks(Square sq);
 static void mask_knight_attacks(Square sq);
 static void mask_pawn_attacks(Square sq);
@@ -69,6 +72,24 @@ static U64 king_attacks[64];    /* [Square] */
 static Magic BishopMagics[64];  /* [Square] */
 static Magic RookMagics[64];    /* [Square] */
 
+static U64
+get_bishop_attacks(Square sq, U64 occ)
+{
+  return slide(NORTH_EAST, sq, occ)
+       | slide(SOUTH_EAST, sq, occ)
+       | slide(SOUTH_WEST, sq, occ)
+       | slide(NORTH_WEST, sq, occ);
+}
+
+static U64
+get_rook_attacks(Square sq, U64 occ)
+{
+  return slide(NORTH, sq, occ)
+       | slide(EAST,  sq, occ)
+       | slide(SOUTH, sq, occ)
+       | slide(WEST,  sq, occ);
+}
+
 void
 init_bitboards(void)
 {
@@ -79,8 +100,6 @@ init_bitboards(void)
     mask_pawn_attacks(sq);
     mask_relevant_bishop_occupancy(sq);
     mask_relevant_rook_occupancy(sq);
-    print_mask(knight_attacks[sq]);
-    getchar();
   }
 }
 
