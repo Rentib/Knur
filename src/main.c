@@ -26,9 +26,9 @@ main(/* int argc, char *argv[] */)
 {
   printf("Knur by Stanisław Bitner\n");
 
-  init_bitboards();
+  bitboards_init();
 
-  free_bitboards();
+  bitboards_free();
 
   return EXIT_SUCCESS;
 }

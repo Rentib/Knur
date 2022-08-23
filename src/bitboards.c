@@ -96,7 +96,7 @@ attacks_bb(PieceType pt, Square sq, U64 occ)
 }
 
 void
-free_bitboards(void)
+bitboards_free(void)
 {
   Square sq;
   for (sq = SQ_A8; sq <= SQ_H1; sq++) {
@@ -124,7 +124,7 @@ get_rook_attacks(Square sq, U64 occ)
 }
 
 void
-init_bitboards(void)
+bitboards_init(void)
 {
   Square sq;
   for (sq = SQ_A8; sq <= SQ_H1; sq++) {
