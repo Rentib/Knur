@@ -19,9 +19,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "bitboards.h"
+
 int
 main(/* int argc, char *argv[] */)
 {
   printf("Knur by Stanisław Bitner\n");
+
+  init_bitboards();
+
   return EXIT_SUCCESS;
 }

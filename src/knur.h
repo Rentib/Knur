@@ -39,13 +39,10 @@ typedef enum {
   SQ_NONE
 } Square;
 
-typedef enum {
-  Rank1, Rank2, Rank3, Rank4, Rank5, Rank6, Rank7, Rank8
-} Rank;
-
-typedef enum {
-  FileA, FileB, FileC, FileD, FileE, FileF, FileG, FileH
-} File;
+enum { Rank1, Rank2, Rank3, Rank4, Rank5, Rank6, Rank7, Rank8 };
+enum { FileA, FileB, FileC, FileD, FileE, FileF, FileG, FileH };
+typedef int Rank;
+typedef int File;
 
 typedef enum {
   NORTH = -8,
