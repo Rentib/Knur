@@ -24,6 +24,9 @@
 #include "rand.h"
 #include "util.h"
 
+#define MAGIC_ATTACK(magic, occupancy)    \
+  (magic.attacks[magic_hash(&magic, (occupancy))])
+
 /** \typedef Magic
  * Defines structure Magic.
  * \struct Magic
@@ -74,6 +77,20 @@ static U64 knight_attacks[64];  /* [Square] */
 static U64 king_attacks[64];    /* [Square] */
 static Magic BishopMagics[64];  /* [Square] */
 static Magic RookMagics[64];    /* [Square] */
+
+U64
+attacks_bb(PieceType pt, Square sq, U64 occ)
+{
+  switch (pt) {
+  case KNIGHT: return knight_attacks[sq];
+  case BISHOP: return MAGIC_ATTACK(BishopMagics[sq], occ);
+  case   ROOK: return MAGIC_ATTACK(RookMagics[sq], occ);
+  case  QUEEN: return MAGIC_ATTACK(BishopMagics[sq], occ)
+                    | MAGIC_ATTACK(RookMagics[sq], occ);
+  case   KING: return king_attacks[sq];
+  default: return 0ULL;
+  }
+}
 
 void
 free_bitboards(void)
@@ -221,6 +238,12 @@ mask_state(U64 mask, unsigned idx)
   return res;
 }
 
+U64
+pawn_attacks_bb(Color c, Square sq)
+{
+  return pawn_attacks[c][sq];
+}
+
 void
 print_mask(U64 bb)
 {
@@ -261,7 +284,7 @@ static U64
 slide(Direction dir, Square sq, U64 occ)
 {
   U64 res = 0ULL, mask = GET_BITBOARD(sq);
-  while ((mask = shift(dir, mask) & ~occ))
-    res |= mask;
-  return res;
+  while ((mask = shift(dir, mask)) && !(mask & occ))
+      res |= mask;
+  return res | mask;
 }

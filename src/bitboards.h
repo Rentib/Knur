@@ -50,8 +50,10 @@ extern const U64 FileFBB;
 extern const U64 FileGBB;
 extern const U64 FileHBB;
 
+U64 attacks_bb(PieceType pt, Square sq, U64 occ);
 void free_bitboards(void);
 void init_bitboards(void);
+U64 pawn_attacks_bb(Color c, Square sq);
 void print_mask(U64 mask);
 U64 shift(Direction dir, U64 mask);
 
