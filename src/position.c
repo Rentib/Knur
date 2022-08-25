@@ -31,6 +31,19 @@ static inline void add_piece(Position *pos, PieceType pt, Color c, Square sq);
 static inline void rem_enpas(Position *pos);
 static inline void rem_piece(Position *pos, PieceType pt, Color c, Square sq);
 static inline void flip_furn(Position *pos);
+static inline void update_castle(Position *pos, Square from, Square to);
+
+/* Numbers for & operation that update castle rights. */
+static const int update_castle_rights[64] = {
+  13, 15, 15, 15,  5, 15, 15,  7,
+  15, 15, 15, 15, 15, 15, 15, 15,
+  15, 15, 15, 15, 15, 15, 15, 15,
+  15, 15, 15, 15, 15, 15, 15, 15,
+  15, 15, 15, 15, 15, 15, 15, 15,
+  15, 15, 15, 15, 15, 15, 15, 15,
+  15, 15, 15, 15, 15, 15, 15, 15,
+  14, 15, 15, 15, 10, 15, 15, 11,
+};
 
 static struct {
   Key turn;
@@ -80,6 +93,14 @@ flip_furn(Position *pos)
 {
   pos->key ^= zobrist.turn;
   pos->turn ^= 1;
+}
+
+static inline void
+update_castle(Position *pos, Square from, Square to)
+{
+  pos->key ^= zobrist.castle[pos->st->castle];
+  pos->st->castle &= (update_castle_rights[from] & update_castle_rights[to]);
+  pos->key ^= zobrist.castle[pos->st->castle];
 }
 
 void
@@ -204,6 +225,65 @@ pos_set(Position *pos, const char *fen)
 }
 
 void
+do_move(Position *pos, Move m)
+{
+  const Color us = pos->turn, them = !us;
+  const Square from = FROM_SQ(m), to = TO_SQ(m);
+  const PieceType pt = pos->board[from], captured = pos->board[to];
+
+  /* create next state */
+  State *st = emalloc(sizeof(State));
+  *st = *pos->st;
+  st->fifty++;
+  if (pt == PAWN || captured != NONE)
+    st->fifty = 0;
+  st->captured = captured;
+  st->prev = pos->st;
+  pos->st = st;
+
+  if (captured != NONE)
+    rem_piece(pos, captured, them, to);
+
+  rem_piece(pos, pt, us, from);
+  add_piece(pos, pt, us, to);
+
+  rem_enpas(pos);
+
+  if (pt == PAWN) {
+    if (to - from == 16 || from - to == 16) {
+      add_enpas(pos, to + (us == WHITE ? SOUTH : NORTH));
+    } else if (TYPE_OF(m) == PROMOTION) {
+      rem_piece(pos, PAWN, us, to);
+      add_piece(pos, PROMOTION_TYPE(m), us, to);
+    } else if (TYPE_OF(m) == EN_PASSANT) {
+      rem_piece(pos, PAWN, them, to + (us == WHITE ? SOUTH : NORTH));
+    }
+  } else if (pt == KING) {
+    pos->ksq[us] = to;
+    if (TYPE_OF(m) == CASTLE) {
+      if (to < from) { /* long */
+        rem_piece(pos, ROOK, us, to - 2);
+        add_piece(pos, ROOK, us, to + EAST);
+      } else { /* short */
+        rem_piece(pos, ROOK, us, to + 1);
+        add_piece(pos, ROOK, us, to + WEST);
+      }
+    }
+  }
+
+  flip_furn(pos);
+  update_castle(pos, from, to);
+
+  pos->empty = ~(pos->color[WHITE] | pos->color[BLACK]);
+}
+
+void
+undo_move(Position *pos, Move m)
+{
+
+}
+
+void
 zobrist_init(void)
 {
   unsigned i, j, k;
@@ -220,7 +300,7 @@ zobrist_init(void)
 U64
 attackers_to(const Position *pos, Square sq, U64 occ)
 {
-  return (((pawn_attacks_bb(WHITE, sq) & pos->color[BLACK]) 
+  return (((pawn_attacks_bb(WHITE, sq) & pos->color[BLACK])
        |   (pawn_attacks_bb(BLACK, sq) & pos->color[WHITE])) & pos->piece[PAWN])
        | (attacks_bb(KNIGHT, sq, occ) &  pos->piece[KNIGHT])
        | (attacks_bb(BISHOP, sq, occ) & (pos->piece[BISHOP] | pos->piece[QUEEN]))
