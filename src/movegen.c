@@ -21,6 +21,7 @@
 #include "movegen.h"
 #include "position.h"
 
+static Move *castle_moves(Move *move_list, Position *pos);
 static Move *pawn_moves(GenType gt, Move *move_list, Position *pos, U64 target);
 static Move *piece_moves(PieceType pt, Move *move_list, Position *pos, U64 target);
 
@@ -31,6 +32,28 @@ add_promotions(Direction dir, Move *move_list, Square to)
   *move_list++ = MAKE_PROMOTION(to - dir, to, KNIGHT);
   *move_list++ = MAKE_PROMOTION(to - dir, to,   ROOK);
   *move_list++ = MAKE_PROMOTION(to - dir, to, BISHOP);
+  return move_list;
+}
+
+/**< Bitfield for storing castle rights (QqKk); */
+static Move *
+castle_moves(Move *move_list, Position *pos)
+{
+  const Color us = pos->turn, them = !us;
+  const Square ksq = pos->ksq[us];
+  const U64 occ = ~pos->empty;
+  if (pos->st->castle & (1 << us)) {
+    if (!(occ & between_bb(ksq - 3, ksq - 1)))
+      if (!(pos->color[them] & (attackers_to(pos, ksq + WEST, occ)
+                              | attackers_to(pos, ksq + WEST + WEST, occ))))
+        *move_list++ = MAKE_CASTLE(ksq, ksq - 2);
+  }
+  if (pos->st->castle & (4 << us)) {
+    if (!(occ & between_bb(ksq + 1, ksq + 2)))
+      if (!(pos->color[them] & (attackers_to(pos, ksq + EAST, occ)
+                              | attackers_to(pos, ksq + EAST + EAST, occ))))
+        *move_list++ = MAKE_CASTLE(ksq, ksq + 2);
+  }
   return move_list;
 }
 
@@ -128,8 +151,8 @@ generate_moves(GenType gt, Move *move_list, Position *pos)
   if (POPCOUNT(checkers) < 2) {
     if (checkers)
       target &= between_bb(ksq, GET_SQUARE(checkers));
-    else ;
-      /* generate castle moves */
+    else
+      move_list = castle_moves(move_list, pos);
     move_list = pawn_moves(gt, move_list, pos, target);
     move_list = piece_moves(KNIGHT, move_list, pos, target);
     move_list = piece_moves(BISHOP, move_list, pos, target);
