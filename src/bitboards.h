@@ -51,6 +51,7 @@ extern const U64 FileGBB;
 extern const U64 FileHBB;
 
 U64 attacks_bb(PieceType pt, Square sq, U64 occ);
+U64 between_bb(Square sq1, Square sq2);
 void bitboards_free(void);
 void bitboards_init(void);
 U64 pawn_attacks_bb(Color c, Square sq);

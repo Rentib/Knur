@@ -75,6 +75,7 @@ const U64 FileGBB = FileFBB << 1;
 const U64 FileHBB = FileGBB << 1;
 
 /* lookup tables */
+static U64 between[64][64];
 static U64 pawn_attacks[2][64]; /* [Color][Square] */
 static U64 knight_attacks[64];  /* [Square] */
 static U64 king_attacks[64];    /* [Square] */
@@ -93,6 +94,12 @@ attacks_bb(PieceType pt, Square sq, U64 occ)
   case   KING: return king_attacks[sq];
   default: return 0ULL;
   }
+}
+
+U64
+between_bb(Square sq1, Square sq2)
+{
+  return between[sq1][sq2];
 }
 
 void
@@ -126,7 +133,7 @@ get_rook_attacks(Square sq, U64 occ)
 void
 bitboards_init(void)
 {
-  Square sq;
+  Square sq, sq1, sq2;
   for (sq = SQ_A8; sq <= SQ_H1; sq++) {
     mask_king_attacks(sq);
     mask_knight_attacks(sq);
@@ -135,6 +142,18 @@ bitboards_init(void)
     mask_relevant_rook_occupancy(sq);
     look_for_magic(BISHOP, sq);
     look_for_magic(  ROOK, sq);
+  }
+
+  for (sq1 = SQ_A8; sq1 <= SQ_H1; sq1++) {
+    for (sq2 = SQ_A8; sq2 <= SQ_H1; sq2++) {
+      if (GET_BIT(attacks_bb(BISHOP, sq1, 0ULL), sq2))
+        between[sq1][sq2] = attacks_bb(BISHOP, sq1, GET_BITBOARD(sq2))
+                          & attacks_bb(BISHOP, sq2, GET_BITBOARD(sq1));
+      if (GET_BIT(attacks_bb(ROOK, sq1, 0ULL), sq2))
+        between[sq1][sq2] = attacks_bb(ROOK, sq1, GET_BITBOARD(sq2))
+                          & attacks_bb(ROOK, sq2, GET_BITBOARD(sq1));
+      between[sq1][sq2] |= GET_BITBOARD(sq1) | GET_BITBOARD(sq2);
+    }
   }
 }
 
