@@ -57,4 +57,37 @@ typedef enum {
   SOUTH_SOUTH = SOUTH + SOUTH,
 } Direction;
 
+
+/** \enum Move
+ * Enumerator of chess moves. A chess move is represented by a 32 bit integer.
+ * 000000000000000|00|00|000000|000000
+ *    move score  |pt|mt|fromsq|tosq
+ * pt     - promotion piece type
+ * mt     - move type
+ * fromsq - from square
+ * tosq   - to square
+ */
+typedef enum {
+  MOVE_NONE = 0,
+} Move;
+
+typedef enum {
+  NORMAL     = 0 << 12,
+  PROMOTION  = 1 << 12,
+  CASTLE     = 2 << 12,
+  EN_PASSANT = 3 << 12,
+} MoveType;
+
+#define TO_SQ(move)             ((Square)((move) & 0x3F))
+#define FROM_SQ(move)           ((Square)(((move) >> 6) & 0x3F))
+#define TYPE_OF(move)           ((MoveType)((move) & (3 << 12)))
+#define PROMOTION_TYPE(move)    ((PieceType)((((move) >> 14)) & 3) + KNIGHT)
+#define MAKE_MOVE(from, to)     ((Move)(((from) << 6) + (to)))
+#define MAKE_PROMOTION(from, to, pt) \
+  ((Move)((((pt) - KINGHT) << 14) + PROMOTION + ((from) << 6) + (to)))
+#define MAKE_CASTLE(from, to)        \
+  ((Move)(CASTLE + ((from) << 6) + (to)))
+#define MAKE_EN_PASSANT(from, to)    \
+  ((Move)(EN_PASSANT + ((from) << 6) + (to)))
+
 #endif /* KNUR_H_ */
