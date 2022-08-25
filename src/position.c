@@ -138,7 +138,7 @@ pos_print(const Position *pos)
   printf("    Castling:       %c%c%c%c\n",
       pos->st->castle & 4 ? 'K' : '-', pos->st->castle & 1 ? 'Q' : '-',
       pos->st->castle & 8 ? 'k' : '-', pos->st->castle & 2 ? 'q' : '-');
-  printf("    Hash key:       %lu\n", pos->key);
+  printf("    Hash key:       %lx\n", pos->key);
 }
 
 void
@@ -162,6 +162,7 @@ pos_set(Position *pos, const char *fen)
   for (i = 0; i < LENGTH(pos->ksq); i++)
     pos->ksq[i] = SQ_NONE;
   pos->game_ply = 0;
+  pos->key = 0ULL;
 
   while (pos->st) {
     st = pos->st->prev;
@@ -233,13 +234,15 @@ do_move(Position *pos, Move m)
 
   /* create next state */
   State *st = emalloc(sizeof(State));
-  *st = *pos->st;
+  *st = *(pos->st);
   st->fifty++;
   if (pt == PAWN || captured != NONE)
     st->fifty = 0;
   st->captured = captured;
   st->prev = pos->st;
   pos->st = st;
+  pos->game_ply++;
+  pos->ply++;
 
   if (captured != NONE)
     rem_piece(pos, captured, them, to);
@@ -280,7 +283,54 @@ do_move(Position *pos, Move m)
 void
 undo_move(Position *pos, Move m)
 {
+  pos->key ^= zobrist.castle[pos->st->castle];
+  flip_furn(pos);
 
+  const Color us = pos->turn, them = !us;
+  const Square from = FROM_SQ(m), to = TO_SQ(m);
+  const PieceType pt = TYPE_OF(m) == PROMOTION ? PAWN : pos->board[to],
+                  captured = pos->st->captured;
+
+  if (pt == PAWN) {
+    if (to - from == 16 || from - to == 16) {
+      rem_enpas(pos);
+    } else if (TYPE_OF(m) == PROMOTION) {
+      rem_piece(pos, PROMOTION_TYPE(m), us, to);
+      add_piece(pos, PAWN, us, to);
+    } else if (TYPE_OF(m) == EN_PASSANT) {
+      add_piece(pos, PAWN, them, to + (us == WHITE ? SOUTH : NORTH));
+    }
+  } else if (pt == KING) {
+    pos->ksq[us] = from;
+    if (TYPE_OF(m) == CASTLE) {
+      if (to < from) { /* long */
+        rem_piece(pos, ROOK, us, to + EAST);
+        add_piece(pos, ROOK, us, to - 2);
+      } else { /* short */
+        rem_piece(pos, ROOK, us, to + WEST);
+        add_piece(pos, ROOK, us, to + 1);
+      }
+    }
+  }
+
+  rem_piece(pos, pt, us, to);
+  add_piece(pos, pt, us, from);
+
+  if (captured != NONE)
+    add_piece(pos, captured, them, to);
+
+  State *st = pos->st->prev;
+  free(pos->st);
+  pos->st = st;
+  pos->key ^= zobrist.castle[pos->st->castle];
+
+  if (pos->st->enpas != SQ_NONE)
+    add_enpas(pos, pos->st->enpas);
+
+  pos->game_ply--;
+  pos->ply--;
+
+  pos->empty = ~(pos->color[WHITE] | pos->color[BLACK]);
 }
 
 void
