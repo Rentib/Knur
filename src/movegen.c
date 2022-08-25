@@ -24,6 +24,16 @@
 static Move *pawn_moves(GenType gt, Move *move_list, Position *pos, U64 target);
 static Move *piece_moves(PieceType pt, Move *move_list, Position *pos, U64 target);
 
+static inline Move *
+add_promotions(Direction dir, Move *move_list, Square to)
+{
+  *move_list++ = MAKE_PROMOTION(to - dir, to,  QUEEN);
+  *move_list++ = MAKE_PROMOTION(to - dir, to, KNIGHT);
+  *move_list++ = MAKE_PROMOTION(to - dir, to,   ROOK);
+  *move_list++ = MAKE_PROMOTION(to - dir, to, BISHOP);
+  return move_list;
+}
+
 static Move *
 pawn_moves(GenType gt, Move *move_list, Position *pos, U64 target)
 {
@@ -58,6 +68,7 @@ pawn_moves(GenType gt, Move *move_list, Position *pos, U64 target)
   if (gt != GT_QUIETS) {
     b1 = shift(upw, pawns) & enemies;
     b2 = shift(upe, pawns) & enemies;
+
     while (b1) {
       to = pop_lsb(&b1);
       *move_list++ = MAKE_MOVE(to - upw, to);
@@ -73,6 +84,19 @@ pawn_moves(GenType gt, Move *move_list, Position *pos, U64 target)
   }
 
   /* promotions - quiet and captures */
+  if (promo) {
+    if (gt != GT_CAPTURES) {
+      b1 = shift(up, promo) & empty;
+      while (b1) move_list = add_promotions(up, move_list, pop_lsb(&b1));
+    }
+    if (gt != GT_QUIETS) {
+      b1 = shift(upw, promo) & enemies;
+      b2 = shift(upe, promo) & enemies;
+      while (b1) move_list = add_promotions(upw, move_list, pop_lsb(&b1));
+      while (b2) move_list = add_promotions(upe, move_list, pop_lsb(&b2));
+    }
+  }
+
   return move_list;
 }
 

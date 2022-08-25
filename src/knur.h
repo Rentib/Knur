@@ -84,7 +84,7 @@ typedef enum {
 #define PROMOTION_TYPE(move)    ((PieceType)((((move) >> 14)) & 3) + KNIGHT)
 #define MAKE_MOVE(from, to)     ((Move)(((from) << 6) + (to)))
 #define MAKE_PROMOTION(from, to, pt) \
-  ((Move)((((pt) - KINGHT) << 14) + PROMOTION + ((from) << 6) + (to)))
+  ((Move)((((pt) - KNIGHT) << 14) + PROMOTION + ((from) << 6) + (to)))
 #define MAKE_CASTLE(from, to)        \
   ((Move)(CASTLE + ((from) << 6) + (to)))
 #define MAKE_EN_PASSANT(from, to)    \
