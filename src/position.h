@@ -68,5 +68,6 @@ struct Position {
 void pos_print(const Position *pos);
 void pos_set(Position *pos, const char *fen);
 void zobrist_init(void);
+U64 attackers_to(const Position *pos, Square sq, U64 occ);
 
 #endif /* KNUR_POSITION_H_ */

@@ -216,3 +216,14 @@ zobrist_init(void)
   for (i = 0; i < 8; i++)
     zobrist.enpas[i] = rand_u64();
 }
+
+U64
+attackers_to(const Position *pos, Square sq, U64 occ)
+{
+  return (((pawn_attacks_bb(WHITE, sq) & pos->color[BLACK]) 
+       |   (pawn_attacks_bb(BLACK, sq) & pos->color[WHITE])) & pos->piece[PAWN])
+       | (attacks_bb(KNIGHT, sq, occ) &  pos->piece[KNIGHT])
+       | (attacks_bb(BISHOP, sq, occ) & (pos->piece[BISHOP] | pos->piece[QUEEN]))
+       | (attacks_bb(  ROOK, sq, occ) & (pos->piece[  ROOK] | pos->piece[QUEEN]))
+       | (attacks_bb(  KING, sq, occ) &  pos->piece[  KING]);
+}
