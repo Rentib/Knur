@@ -124,6 +124,7 @@ void
 pos_set(Position *pos, const char *fen)
 {
   unsigned i;
+  State *st;
   Square sq;
   Color c;
   char z;
@@ -141,6 +142,12 @@ pos_set(Position *pos, const char *fen)
     pos->ksq[i] = SQ_NONE;
   pos->game_ply = 0;
 
+  while (pos->st) {
+    st = pos->st->prev;
+    free(pos->st);
+    pos->st = st;
+  }
+  
   pos->st = emalloc(sizeof(State));
   pos->st->enpas = SQ_NONE;
   pos->st->castle = 0;
