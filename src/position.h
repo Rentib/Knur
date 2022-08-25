@@ -70,6 +70,7 @@ void pos_set(Position *pos, const char *fen);
 void do_move(Position *pos, Move m);
 void undo_move(Position *pos, Move m);
 void zobrist_init(void);
+int is_legal(const Position *pos, Move m);
 U64 attackers_to(const Position *pos, Square sq, U64 occ);
 
 #endif /* KNUR_POSITION_H_ */

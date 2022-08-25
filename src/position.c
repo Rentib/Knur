@@ -347,6 +347,28 @@ zobrist_init(void)
     zobrist.enpas[i] = rand_u64();
 }
 
+int
+is_legal(const Position *pos, Move m)
+{
+  const Color us = pos->turn, them = !us;
+  const Square from = FROM_SQ(m), to = TO_SQ(m), ksq = pos->ksq[us];
+  U64 enemies = pos->color[them] & ~GET_BITBOARD(to);
+  U64 occ = (~pos->empty ^ GET_BITBOARD(from)) | GET_BITBOARD(to);
+
+  if (ksq == from)
+    return !(attackers_to(pos, to, occ) & enemies);
+
+  if (TYPE_OF(m) == EN_PASSANT) {
+    occ ^= GET_BITBOARD(to + (us == WHITE ? SOUTH : NORTH));
+    enemies ^= GET_BITBOARD(to + (us == WHITE ? SOUTH : NORTH));
+  }
+
+  /* check for discovered checks */
+  return !(((attacks_bb(  ROOK, ksq, occ) & (pos->piece[  ROOK] | pos->piece[QUEEN]))
+         |  (attacks_bb(BISHOP, ksq, occ) & (pos->piece[BISHOP] | pos->piece[QUEEN])))
+         &   enemies);
+}
+
 U64
 attackers_to(const Position *pos, Square sq, U64 occ)
 {

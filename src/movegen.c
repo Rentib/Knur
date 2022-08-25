@@ -44,14 +44,12 @@ castle_moves(Move *move_list, Position *pos)
   const U64 occ = ~pos->empty;
   if (pos->st->castle & (1 << us)) {
     if (!(occ & between_bb(ksq - 3, ksq - 1)))
-      if (!(pos->color[them] & (attackers_to(pos, ksq + WEST, occ)
-                              | attackers_to(pos, ksq + WEST + WEST, occ))))
+      if (!(pos->color[them] & (attackers_to(pos, ksq + WEST, occ))))
         *move_list++ = MAKE_CASTLE(ksq, ksq - 2);
   }
   if (pos->st->castle & (4 << us)) {
     if (!(occ & between_bb(ksq + 1, ksq + 2)))
-      if (!(pos->color[them] & (attackers_to(pos, ksq + EAST, occ)
-                              | attackers_to(pos, ksq + EAST + EAST, occ))))
+      if (!(pos->color[them] & (attackers_to(pos, ksq + EAST, occ))))
         *move_list++ = MAKE_CASTLE(ksq, ksq + 2);
   }
   return move_list;
