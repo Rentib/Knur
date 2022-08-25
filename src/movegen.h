@@ -25,6 +25,7 @@
 typedef enum {
   GT_ALL,
   GT_CAPTURES,
+  GT_QUIETS,
 } GenType;
 
 Move *generate_moves(GenType gt, Move *move_list, Position *pos);

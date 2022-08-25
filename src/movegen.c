@@ -29,9 +29,11 @@ pawn_moves(GenType gt, Move *move_list, Position *pos, U64 target)
 {
   const Color us = pos->turn, them = !us;
   const Direction up = us == WHITE ? NORTH : SOUTH;
+  const Direction upw = up + WEST, upe = up + EAST;
   const U64 rank4 = us == WHITE ? Rank4BB : Rank5BB;
   const U64 rank7 = us == WHITE ? Rank7BB : Rank2BB;
   const U64 empty = pos->empty & target; /* empty squares that are targets */
+  const U64 enemies = pos->color[them] & target; /* enemies that are targets */
   const U64 pawns = pos->piece[PAWN] & pos->color[us] & ~rank7;
   const U64 promo = pos->piece[PAWN] & pos->color[us] &  rank7;
   U64 b1, b2;
@@ -53,6 +55,23 @@ pawn_moves(GenType gt, Move *move_list, Position *pos, U64 target)
   }
 
   /* captures - normal and en_passant */
+  if (gt != GT_QUIETS) {
+    b1 = shift(upw, pawns) & enemies;
+    b2 = shift(upe, pawns) & enemies;
+    while (b1) {
+      to = pop_lsb(&b1);
+      *move_list++ = MAKE_MOVE(to - upw, to);
+    }
+    while (b2) {
+      to = pop_lsb(&b2);
+      *move_list++ = MAKE_MOVE(to - upe, to);
+    }
+
+    if (pos->st->enpas != SQ_NONE)
+      for (b1 = pawns & pawn_attacks_bb(them, pos->st->enpas); b1; )
+        *move_list++ = MAKE_EN_PASSANT(pop_lsb(&b1), pos->st->enpas);
+  }
+
   /* promotions - quiet and captures */
   return move_list;
 }
