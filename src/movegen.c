@@ -21,7 +21,41 @@
 #include "movegen.h"
 #include "position.h"
 
+static Move *pawn_moves(GenType gt, Move *move_list, Position *pos, U64 target);
 static Move *piece_moves(PieceType pt, Move *move_list, Position *pos, U64 target);
+
+static Move *
+pawn_moves(GenType gt, Move *move_list, Position *pos, U64 target)
+{
+  const Color us = pos->turn, them = !us;
+  const Direction up = us == WHITE ? NORTH : SOUTH;
+  const U64 rank4 = us == WHITE ? Rank4BB : Rank5BB;
+  const U64 rank7 = us == WHITE ? Rank7BB : Rank2BB;
+  const U64 empty = pos->empty & target; /* empty squares that are targets */
+  const U64 pawns = pos->piece[PAWN] & pos->color[us] & ~rank7;
+  const U64 promo = pos->piece[PAWN] & pos->color[us] &  rank7;
+  U64 b1, b2;
+  Square to;
+
+  /* quiet moves - single and double pawn pushes */
+  if (gt != GT_CAPTURES) {
+    b1 = shift(up, pawns) & pos->empty;
+    b2 = shift(up, b1) & empty & rank4;
+    b1 &= target;
+    while (b1) {
+      to = pop_lsb(&b1);
+      *move_list++ = MAKE_MOVE(to - up, to);
+    }
+    while (b2) {
+      to = pop_lsb(&b2);
+      *move_list++ = MAKE_MOVE(to - up - up, to);
+    }
+  }
+
+  /* captures - normal and en_passant */
+  /* promotions - quiet and captures */
+  return move_list;
+}
 
 static Move *
 piece_moves(PieceType pt, Move *move_list, Position *pos, U64 target)
@@ -53,7 +87,7 @@ generate_moves(GenType gt, Move *move_list, Position *pos)
       target &= between_bb(ksq, GET_SQUARE(checkers));
     else ;
       /* generate castle moves */
-    /* generate pawn moves */
+    move_list = pawn_moves(gt, move_list, pos, target);
     move_list = piece_moves(KNIGHT, move_list, pos, target);
     move_list = piece_moves(BISHOP, move_list, pos, target);
     move_list = piece_moves(  ROOK, move_list, pos, target);
