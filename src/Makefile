@@ -18,7 +18,7 @@ CFLAGS = -std=c99 -Wall -Wextra -pedantic -Wno-deprecated-declarations -Wno-impl
 LDFLAGS = 
 CC = cc
 
-REQ = bitboards movegen perft position rand search uci util
+REQ = bitboards evaluate movegen perft position rand search uci util
 
 all: options main
 
@@ -38,3 +38,6 @@ main: main.o $(REQ:=.o)
 
 clean:
 	rm -f main main.o $(REQ:=.o)
+
+install: all
+	cp -f main ~/.local/bin/chess_engines/knur
