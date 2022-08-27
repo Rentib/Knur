@@ -45,6 +45,16 @@ static const int update_castle_rights[64] = {
   14, 15, 15, 15, 10, 15, 15, 11,
 };
 
+/** Material of each piece type. */
+static const int material[6] = {
+  [PAWN]   = 100,
+  [KNIGHT] = 300,
+  [BISHOP] = 315,
+  [ROOK]   = 500,
+  [QUEEN]  = 900,
+  [KING]   = 0,
+};
+
 /** \struct
  * A structure used for storing zobrist hashes.
  */
@@ -72,6 +82,7 @@ add_piece(Position *pos, PieceType pt, Color c, Square sq)
   pos->color[c] |= bb;
   pos->piece[pt] |= bb;
   pos->board[sq] = pt;
+  pos->material[c] += material[pt];
 }
 
 static inline void
@@ -91,6 +102,7 @@ rem_piece(Position *pos, PieceType pt, Color c, Square sq)
   pos->color[c] ^= bb;
   pos->piece[pt] ^= bb;
   pos->board[sq] = NONE;
+  pos->material[c] -= material[pt];
 }
 
 static inline void

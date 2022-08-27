@@ -64,6 +64,7 @@ struct Position {
   Square    ksq[2];      /**< [Color] Square of WHITE and BLACK king; */
   int       game_ply;    /**< PLY of game; */
   int       ply;         /**< PLY of search; */
+  int       material[2]; /**< [Color] Material of each side in centipawns; */
   Key       key;         /**< Zobrist hash; */
   State    *st;          /**< Position state. */
 };
