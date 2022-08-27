@@ -21,6 +21,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "knur.h"
+#include "movegen.h"
 #include "perft.h"
 #include "position.h"
 #include "search.h"
@@ -41,30 +43,136 @@ typedef struct Parser Parser;
  */
 struct Parser {
   const char *cmd;                              /**< Command; */
-  void (*func)(const Position *, const char *); /**< Function. */
+  void (*func)(Position *, const char *); /**< Function. */
 };
 
-static void display(const Position *, const char *);
-static void quit(const Position *, const char *);
+static void display(Position *, const char *);
+static void go(Position *, const char *);
+static void isready(Position *, const char *);
+static Move parse_move(Position *pos, char *move_string);
+static void position(Position *, const char *);
+static void quit(Position *, const char *);
+static void uci(Position *, const char *);
+static void ucinewgame(Position *, const char *);
 
 static Parser parser[] = {
   { "d", display },
+  { "go", go },
+  { "isready", isready },
+  { "position", position },
   { "q", quit },
   { "quit", quit },
+  { "uci", uci },
+  { "ucinewgame", ucinewgame },
 };
 
 static void
-display(const Position *pos, const char *input)
+display(Position *pos, const char *input)
 {
   (void)input;
   pos_print(pos);
 }
 
 static void
-quit(const Position *pos, const char *input)
+go(Position *pos, const char *input)
+{
+  char *token = NULL;
+  int perft_depth = 0, depth = 0;
+  if ((token = strstr(input, "perft")))
+    perft_depth = atoi(token + 6);
+  if ((token = strstr(input, "depth")))
+    depth = atoi(token + 6);
+
+  if (perft_depth) {
+    perft(pos, perft_depth);
+    return;
+  }
+
+  info.depth = depth;
+  search(pos);
+}
+
+static void
+isready(Position *pos, const char *input)
+{
+  (void)pos, (void)input;
+  printf("readyok\n");
+}
+
+static Move
+parse_move(Position *pos, char *move_string)
+{
+  Move move_list[256], *m, *last;
+  Square from = move_string[0] - 'a' + (('8' - move_string[1]) << 3);
+  Square to   = move_string[2] - 'a' + (('8' - move_string[3]) << 3);
+
+  last = generate_moves(GT_ALL, move_list, pos);
+  for (m = move_list; m != last; m++) {
+    if (from != FROM_SQ(*m) || to != TO_SQ(*m) || !is_legal(pos, *m))
+      continue;
+    if (TYPE_OF(*m) == PROMOTION)
+      switch (PROMOTION_TYPE(*m)) {
+      case KNIGHT: if (move_string[5] == 'n') return *m;
+      case BISHOP: if (move_string[5] == 'b') return *m;
+      case   ROOK: if (move_string[5] == 'r') return *m;
+      case  QUEEN: if (move_string[5] == 'q') return *m;
+      }
+    else
+      return *m;
+  }
+  return MOVE_NONE;
+}
+
+static void
+position(Position *pos, const char *input)
+{
+  char *token = NULL;
+  if (!strncmp(input, "startpos", 8)) {
+    pos_set(pos, STARTPOS);
+    input += 8;
+  } else {
+    token = strstr(input, "fen");
+    if (!token) {
+      pos_set(pos, STARTPOS);
+    } else {
+      token += 4;
+      pos_set(pos, token);
+    }
+  }
+  token = strstr(input, "moves");
+  if (token) {
+    token += 6;
+    Move m;
+    while (*token) {
+      if ((m = parse_move(pos, token)) == MOVE_NONE)
+        break;
+      do_move(pos, m);
+      while (*token && *token++ != ' ');
+    }
+  }
+}
+
+static void
+quit(Position *pos, const char *input)
 {
   (void)pos, (void)input;
   info.quit = 1;
+}
+
+static void
+uci(Position *pos, const char *input)
+{
+  (void)pos, (void)input;
+  printf("id name Knur\n");
+  printf("id author Stanisław Bitner\n");
+  printf("uciok\n");
+}
+
+static void
+ucinewgame(Position *pos, const char *input)
+{
+  (void)input;
+  pos_set(pos, STARTPOS);
 }
 
 void
@@ -78,11 +186,14 @@ uci_loop(void)
   pos_set(&pos, STARTPOS);
 
   for (info.quit = 0; !info.quit; ) {
+    memset(input, 0, sizeof(input));
+    fflush(stdout);
+
     readline(input);
     for (i = 0, p = parser; i < LENGTH(parser); i++, p++) {
       len = strlen(p->cmd);
       if ((!input[len] || isspace(input[len]))
-      && !strncmp(input, p->cmd, len)) {
+      &&  !strncmp(input, p->cmd, len)) {
         p->func(&pos, input + len);
         break;
       }
