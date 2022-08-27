@@ -24,6 +24,9 @@
 #include "bitboards.h"
 #include "knur.h"
 
+/** \typedef Key
+ * Defines Key as a 64 bit unsigned integer.
+ */
 typedef uint64_t Key;
 
 /** \typedef State
@@ -61,16 +64,51 @@ struct Position {
   Square    ksq[2];      /**< [Color] Square of WHITE and BLACK king; */
   int       game_ply;    /**< PLY of game; */
   int       ply;         /**< PLY of search; */
-  Key       key;
+  Key       key;         /**< Zobrist hash; */
   State    *st;          /**< Position state. */
 };
 
+/** \brief Prints board.
+ * \param[in] pos - pointer to a structure containing a position.
+ */
 void pos_print(const Position *pos);
+
+/** \brief Sets position to given FEN.
+ * \param[in,out] pos - pointer to a structure containing a position;
+ * \param[in] fen     - pointer to a FEN string.
+ */
 void pos_set(Position *pos, const char *fen);
+
+/** \brief Makes a move.
+ * \param[in,out] pos - pointer to a structure containing a position;
+ * \param[in] m       - move to be made.
+ */
 void do_move(Position *pos, Move m);
+
+/** \brief Undoes a move.
+ * \param[in,out] pos - pointer to a structure containing a position;
+ * \param[in] m       - move to be undone.
+ */
 void undo_move(Position *pos, Move m);
+
+/** \brief Initialises numbers used for zobrist hashing.
+ * https://www.chessprogramming.org/Zobrist_Hashing
+ */
 void zobrist_init(void);
+
+/** \brief Checks if a move is legal.
+ * \param[in] pos - pointer to a structure containing a position;
+ * \param[in] m   - move to be checked.
+ * \return 0 if move \p m is illegal, nonzero otherwise.
+ */
 int is_legal(const Position *pos, Move m);
+
+/** \brief Returns a bitboard of attackers to a given square.
+ * \param[in] pos - pointer to a structure containing a position;
+ * \param[in] sq  - square to be checked;
+ * \param[in] occ - bitboard of occupied squares.
+ * \return A bitboard of pieces attacking square \p sq.
+ */
 U64 attackers_to(const Position *pos, Square sq, U64 occ);
 
 #endif /* KNUR_POSITION_H_ */

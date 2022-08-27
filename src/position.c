@@ -33,7 +33,7 @@ static inline void rem_piece(Position *pos, PieceType pt, Color c, Square sq);
 static inline void flip_furn(Position *pos);
 static inline void update_castle(Position *pos, Square from, Square to);
 
-/* Numbers for & operation that update castle rights. */
+/** Numbers for & operation that update castle rights. */
 static const int update_castle_rights[64] = {
   13, 15, 15, 15,  5, 15, 15,  7,
   15, 15, 15, 15, 15, 15, 15, 15,
@@ -45,11 +45,16 @@ static const int update_castle_rights[64] = {
   14, 15, 15, 15, 10, 15, 15, 11,
 };
 
+/** \struct
+ * A structure used for storing zobrist hashes.
+ */
 static struct {
-  Key turn;
-  Key piece[2][6][64];
-  Key castle[16];
-  Key enpas[8];
+  /**{*/
+  Key turn;            /**< [Color]; */
+  Key piece[2][6][64]; /**< [Color][PieceType][Square]; */
+  Key castle[16];      /**< [Castle mask (as in State.castle)]; */
+  Key enpas[8];        /**< [File] */
+  /**}*/
 } zobrist;
 
 static inline void
