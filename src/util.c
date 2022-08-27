@@ -16,6 +16,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,4 +53,14 @@ emalloc(size_t size)
   if (!(p = malloc(size)))
     die("Knur: cannot allocate memory");
   return p;
+}
+
+void
+readline(char *input)
+{
+  int c;
+  while (isspace(c = getchar()));
+  for (; c != '\n' && c != EOF; c = getchar())
+    *input++ = c;
+  *input = '\0';
 }
