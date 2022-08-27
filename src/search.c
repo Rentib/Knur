@@ -18,17 +18,96 @@
 
 #include <stdio.h>
 
+#include "evaluate.h"
+#include "knur.h"
+#include "movegen.h"
 #include "position.h"
 #include "search.h"
 
+#define INFINITY         69000
 #define CHECKMATE        32000
 #define STALEMATE        0
 
+static int negamax(Position *pos, int alpha, int beta, int depth);
+
 SearchInfo info;
+
+static int
+negamax(Position *pos, int alpha, int beta, int depth)
+{
+  int value;
+  Move *m, *last, move_list[256];
+  U64 checkers = attackers_to(pos, pos->ksq[pos->turn], ~pos->empty)
+               & pos->color[!pos->turn];
+  int legalmove = 0;
+
+  if (!depth) {
+    if (!checkers)
+      return evaluate(pos);
+    depth = 1;
+  }
+
+  last = generate_moves(GT_ALL, move_list, pos);
+
+  for (m = move_list; m != last; m++) {
+    if (!is_legal(pos, *m))
+      continue;
+    legalmove++;
+    do_move(pos, *m);
+    value = -negamax(pos, -beta, -alpha, depth - 1);
+    undo_move(pos, *m);
+
+    if (value >= beta)
+      return value;
+
+    if (value > alpha)
+      alpha = value;
+  }
+
+  if (!legalmove)
+    return checkers ? pos->ply - CHECKMATE : STALEMATE;
+
+  return alpha;
+}
+
+static inline const char *
+mtstr(Move m)
+{
+  const char ptc[6] = { 'p', 'n', 'b', 'r', 'q', 'k' };
+  static char res[6];
+  sprintf(res, "%c%c%c%c%c", 
+      'a' + (FROM_SQ(m) & 7), '8' - (FROM_SQ(m) >> 3),
+      'a' + (  TO_SQ(m) & 7), '8' - (  TO_SQ(m) >> 3),
+      TYPE_OF(m) == PROMOTION ? ptc[PROMOTION_TYPE(m)] : '\0');
+  return res;
+}
 
 void
 search(Position *pos)
 {
-  (void)pos;
-  printf("bestmove e2e4\n");
+  int bestvalue = -CHECKMATE, value;
+  int alpha = -INFINITY, beta = INFINITY;
+  Move bestmove = MOVE_NONE;
+  Move *m, *last, move_list[256];
+
+  pos->ply = 0;
+  last = generate_moves(GT_ALL, move_list, pos);
+
+  for (m = move_list; m != last; m++) {
+    if (!is_legal(pos, *m))
+      continue;
+    do_move(pos, *m);
+    value = -negamax(pos, -beta, -alpha, info.depth - 1);
+    undo_move(pos, *m);
+
+    if (value > alpha)
+      alpha = value;
+
+    if (value > bestvalue) {
+      bestvalue = value;
+      bestmove = *m;
+    }
+  }
+
+  printf("bestmove %s\n", mtstr(bestmove));
 }
