@@ -17,21 +17,18 @@
 */
 
 #include <stdio.h>
-#include <stdlib.h>
 
-#include "bitboards.h"
 #include "position.h"
-#include "uci.h"
+#include "search.h"
 
-int
-main(/* int argc, char *argv[] */)
+#define CHECKMATE        32000
+#define STALEMATE        0
+
+SearchInfo info;
+
+void
+search(Position *pos)
 {
-  printf("Knur by Stanisław Bitner\n");
-  bitboards_init();
-  zobrist_init();
-
-  uci_loop();
-
-  bitboards_free();
-  return EXIT_SUCCESS;
+  (void)pos;
+  printf("bestmove e2e4\n");
 }

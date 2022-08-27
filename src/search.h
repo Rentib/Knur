@@ -16,22 +16,28 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <stdio.h>
-#include <stdlib.h>
+#ifndef KNUR_SEARCH_H_
+#define KNUR_SEARCH_H_
 
-#include "bitboards.h"
 #include "position.h"
-#include "uci.h"
 
-int
-main(/* int argc, char *argv[] */)
-{
-  printf("Knur by Stanisław Bitner\n");
-  bitboards_init();
-  zobrist_init();
+/**< \typedef SearchInfo
+ * Defines structure SearchInfo.
+ */
+typedef struct SearchInfo SearchInfo;
 
-  uci_loop();
+/**< \struct SearchInfo
+ * A structure for storing parameters used in search defined by a user.
+ */
+struct SearchInfo {
+  /**{*/
+  int quit; /**< Flag for quitting program. */
+  int depth; /**< Depth of search. */
+  /**}*/
+};
 
-  bitboards_free();
-  return EXIT_SUCCESS;
-}
+extern SearchInfo info;
+
+void search(Position *pos);
+
+#endif /* KNUR_SEARCH_H_ */

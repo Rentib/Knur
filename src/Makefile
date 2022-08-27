@@ -18,7 +18,7 @@ CFLAGS = -std=c99 -Wall -Wextra -pedantic -Wno-deprecated-declarations -Wno-impl
 LDFLAGS = 
 CC = cc
 
-REQ = bitboards movegen perft position rand util
+REQ = bitboards movegen perft position rand search uci util
 
 all: options main
 

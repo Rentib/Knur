@@ -16,22 +16,9 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <stdio.h>
-#include <stdlib.h>
+#ifndef KNUR_UCI_H_
+#define KNUR_UCI_H_
 
-#include "bitboards.h"
-#include "position.h"
-#include "uci.h"
+void uci_loop(void);
 
-int
-main(/* int argc, char *argv[] */)
-{
-  printf("Knur by Stanisław Bitner\n");
-  bitboards_init();
-  zobrist_init();
-
-  uci_loop();
-
-  bitboards_free();
-  return EXIT_SUCCESS;
-}
+#endif /* KNUR_UCI_H_ */
