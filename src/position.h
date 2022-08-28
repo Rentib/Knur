@@ -66,6 +66,7 @@ struct Position {
   int       ply;         /**< PLY of search; */
   int       material[2]; /**< [Color] Material of each side in centipawns; */
   Key       key;         /**< Zobrist hash; */
+  Key       reps[1024];  /**< [game ply] Hash table for detecting repetitions; */
   State    *st;          /**< Position state. */
 };
 

@@ -180,6 +180,8 @@ pos_set(Position *pos, const char *fen)
     pos->ksq[i] = SQ_NONE;
   pos->game_ply = 0;
   pos->key = 0ULL;
+  for (i = 0; i < LENGTH(pos->reps); i++)
+    pos->reps[i] = 0ULL;
 
   while (pos->st) {
     st = pos->st->prev;
@@ -258,7 +260,7 @@ do_move(Position *pos, Move m)
   st->captured = captured;
   st->prev = pos->st;
   pos->st = st;
-  pos->game_ply++;
+  pos->reps[pos->game_ply++] = pos->key;
   pos->ply++;
 
   if (captured != NONE)

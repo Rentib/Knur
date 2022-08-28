@@ -51,6 +51,7 @@ struct PV {
   /**}*/
 };
 
+static inline int is_rep(Position *pos);
 static const char *mtstr(Move m);
 static int negamax(Position *pos, PV *pv, int alpha, int beta, int depth);
 static PV *pv_create(size_t len);
@@ -58,6 +59,15 @@ static void pv_free(PV *pv);
 static int quiescence(Position *pos, int alpha, int beta);
 
 SearchInfo info;
+
+static inline int
+is_rep(Position *pos)
+{
+  int i = pos->game_ply - 1, n = 1;
+  while (i >= pos->game_ply - pos->st->fifty && n < 3)
+    n += (pos->reps[i--] == pos->key);
+  return n >= 3;
+}
 
 static const char *
 mtstr(Move m)
@@ -80,10 +90,21 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
                & pos->color[!pos->turn];
   PV *new_pv;
 
-  if (!depth) {
-    if (!checkers)
-      return quiescence(pos, alpha, beta);
-    depth = 1;
+  if (pos->ply) {
+    /* have to end search or it will seg fault */
+    if (pos->ply >= MAX_PLY)
+      return checkers ? 0 : evaluate(pos);
+
+    /* draw by fifty move rule or 3 fold repetition */
+    if (pos->st->fifty >= 100 || is_rep(pos))
+      return 0;
+
+    /* dont end search if in check */
+    if (!depth) {
+      if (!checkers)
+        return quiescence(pos, alpha, beta);
+      depth = 1;
+    }
   }
 
   info.nodes++;
