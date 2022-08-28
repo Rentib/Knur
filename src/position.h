@@ -67,6 +67,7 @@ struct Position {
   int       material[2]; /**< [Color] Material of each side in centipawns; */
   Key       key;         /**< Zobrist hash; */
   Key       reps[1024];  /**< [game ply] Hash table for detecting repetitions; */
+  Move     *killer[2];   /**< [ply][index] https://www.chessprogramming.org/Killer_Heuristic */
   State    *st;          /**< Position state. */
 };
 

@@ -125,6 +125,11 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
 
     if (value >= beta) {
       pv_free(new_pv);
+      /* killer move */
+      if (pos->board[TO_SQ(*m)] == NONE) {
+        pos->killer[1][pos->ply] = pos->killer[0][pos->ply];
+        pos->killer[0][pos->ply] = *m & 0xFFFF;
+      }
       return value;
     }
 
@@ -198,9 +203,13 @@ search(Position *pos)
   int alpha = -INFINITY, beta = INFINITY;
   unsigned start, i;
   Move bestmove = MOVE_NONE;
-  PV *pv = pv_create(MAX_PLY);
+  PV *pv;
 
+  /* setup */
   pos->ply = 0;
+  pos->killer[0] = ecalloc(MAX_PLY, sizeof(Move));
+  pos->killer[1] = ecalloc(MAX_PLY, sizeof(Move));
+  pv = pv_create(MAX_PLY);
 
   for (depth = 1; depth <= info.depth; depth++) {
     info.nodes = 0;
@@ -218,5 +227,8 @@ search(Position *pos)
 
   printf("bestmove %s\n", mtstr(bestmove));
 
+  /* cleanup */
+  free(pos->killer[0]);
+  free(pos->killer[1]);
   pv_free(pv);
 }

@@ -21,9 +21,9 @@
 #include "position.h"
 
 static const int mvv[] = {
-  [  PAWN] = 9200,
+  [  PAWN] = 9100,
   [KNIGHT] = 9300,
-  [BISHOP] = 9400,
+  [BISHOP] = 9301,
   [  ROOK] = 9500,
   [ QUEEN] = 10000,
   [  KING] = -1,  /* it should be impossible to capture a king */
@@ -40,6 +40,16 @@ set_score(Move *m, int val)
   *m = (Move)((val << 16) + *m);
 }
 
+/** \brief Heuristically assigns moves their scores.
+ * Scores moves as follows:
+ * - Hashmove:   [16969];
+ * - Captures:   [9000, 10000];
+ * - Promotion:  [10000];
+ * - Castle:     [5000];
+ * - En passant: [9100];
+ * - Quiets:
+ *   - Killer:   [8000, 8100];
+ */
 Move *
 process_moves(Move *begin, Move *end, Move hashmove, const Position *pos)
 {
@@ -58,6 +68,10 @@ process_moves(Move *begin, Move *end, Move hashmove, const Position *pos)
             set_score(m, mvv[pos->board[to]] - pos->board[from]);
           } else {
             /* quiet move */
+            if (*m == pos->killer[0][pos->ply])
+              set_score(m, 8100);
+            else if (*m == pos->killer[1][pos->ply])
+              set_score(m, 8000);
             set_score(m, 0);
           }
           break;
@@ -68,7 +82,7 @@ process_moves(Move *begin, Move *end, Move hashmove, const Position *pos)
           set_score(m, 5000);
           break;
         case EN_PASSANT:
-          set_score(m, 7000);
+          set_score(m, 9100);
           break;
         }
       }
