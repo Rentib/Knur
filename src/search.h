@@ -19,6 +19,7 @@
 #ifndef KNUR_SEARCH_H_
 #define KNUR_SEARCH_H_
 
+#include "knur.h"
 #include "position.h"
 
 /**< \typedef SearchInfo
@@ -33,7 +34,8 @@ struct SearchInfo {
   /**{*/
   int quit;       /**< Flag for quitting program; */
   int depth;      /**< Depth of search; */
-  uint64_t nodes; /** Nodes visited during search. */
+  uint64_t nodes; /**< Nodes visited during search; */
+  Move bestmove;  /**< Best move found. */
   /**}*/
 };
 

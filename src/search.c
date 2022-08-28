@@ -85,7 +85,7 @@ static int
 negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
 {
   int value;
-  Move *m, *last, move_list[256];
+  Move *m, *last, move_list[256], hashmove;
   U64 checkers = attackers_to(pos, pos->ksq[pos->turn], ~pos->empty)
                & pos->color[!pos->turn];
   PV *new_pv;
@@ -109,8 +109,9 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
 
   info.nodes++;
 
+  hashmove = pos->ply ? MOVE_NONE : info.bestmove;
   last = generate_moves(GT_ALL, move_list, pos);
-  last = process_moves(move_list, last, MOVE_NONE, pos);
+  last = process_moves(move_list, last, hashmove, pos);
 
   if (move_list == last)
     return checkers ? pos->ply - CHECKMATE : STALEMATE;
@@ -202,10 +203,10 @@ search(Position *pos)
   int score, depth;
   int alpha = -INFINITY, beta = INFINITY;
   unsigned start, i;
-  Move bestmove = MOVE_NONE;
   PV *pv;
 
   /* setup */
+  info.bestmove = MOVE_NONE;
   pos->ply = 0;
   pos->killer[0] = ecalloc(MAX_PLY, sizeof(Move));
   pos->killer[1] = ecalloc(MAX_PLY, sizeof(Move));
@@ -216,7 +217,7 @@ search(Position *pos)
     start = gettime();
 
     score = negamax(pos, pv, alpha, beta, depth);
-    bestmove = *pv->line;
+    info.bestmove = *pv->line & 0xFFFF;
 
     printf("info depth %d score cp %d nodes %lu time %d pv",
         depth, score, info.nodes, gettime() - start);
@@ -225,7 +226,7 @@ search(Position *pos)
     printf("\n");
   }
 
-  printf("bestmove %s\n", mtstr(bestmove));
+  printf("bestmove %s\n", mtstr(info.bestmove));
 
   /* cleanup */
   free(pos->killer[0]);
