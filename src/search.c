@@ -219,8 +219,12 @@ search(Position *pos)
     score = negamax(pos, pv, alpha, beta, depth);
     info.bestmove = *pv->line & 0xFFFF;
 
-    printf("info depth %d score cp %d nodes %lu time %d pv",
-        depth, score, info.nodes, gettime() - start);
+    printf("info depth %d ", depth);
+    if (CHECKMATE - score <= MAX_PLY)
+      printf("mate %d ", (CHECKMATE - score + 1) / 2);
+    else
+      printf("score cp %d ", score);
+    printf("nodes %lu time %d pv", info.nodes, gettime() - start);
     for (i = 0; i < pv->len; i++)
       printf(" %s", mtstr(pv->line[i]));
     printf("\n");
