@@ -16,10 +16,12 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <bits/types/struct_timeval.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
 
 #include "util.h"
 
@@ -53,6 +55,14 @@ emalloc(size_t size)
   if (!(p = malloc(size)))
     die("Knur: cannot allocate memory");
   return p;
+}
+
+int
+gettime(void)
+{
+  struct timeval t;
+  gettimeofday(&t, NULL);
+  return t.tv_sec * 1000 + t.tv_usec / 1000; /* ms */
 }
 
 void

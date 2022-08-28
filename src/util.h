@@ -28,6 +28,7 @@
 void die(const char *fmt, ...);
 void *ecalloc(size_t nitems, size_t size);
 void *emalloc(size_t size);
+int gettime(void);
 void readline(char *input);
 
 
