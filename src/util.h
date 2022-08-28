@@ -19,6 +19,7 @@
 #ifndef KNUR_UTIL_H_
 #define KNUR_UTIL_H_
 
+#include <stdint.h>
 #include <stdlib.h>
 
 #define MAX(a, b)        ((a) > (b) ? (a) : (b))
@@ -29,6 +30,8 @@ void die(const char *fmt, ...);
 void *ecalloc(size_t nitems, size_t size);
 void *emalloc(size_t size);
 int gettime(void);
+uint64_t rand_sparse_u64(void);
+uint64_t rand_u64(void);
 void readline(char *input);
 
 

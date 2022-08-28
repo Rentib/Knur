@@ -21,7 +21,6 @@
 
 #include "bitboards.h"
 #include "knur.h"
-#include "rand.h"
 #include "util.h"
 
 #define MAGIC_ATTACK(magic, occupancy)    \

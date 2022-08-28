@@ -16,14 +16,20 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <bits/types/struct_timeval.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
 
 #include "util.h"
+
+/* ~122ms magic number generation */
+static struct {
+  uint64_t a;
+  uint64_t b;
+} state = { 0x7E5B49327CDD086DULL, 0x640BC27E82D1C729ULL };
 
 void
 die(const char *fmt, ...)
@@ -63,6 +69,24 @@ gettime(void)
   struct timeval t;
   gettimeofday(&t, NULL);
   return t.tv_sec * 1000 + t.tv_usec / 1000; /* ms */
+}
+
+uint64_t
+rand_sparse_u64(void)
+{
+  return rand_u64() & rand_u64() & rand_u64();
+}
+
+/* xorshiro */
+uint64_t
+rand_u64(void)
+{
+    uint64_t a = state.a, b = state.b;
+    uint64_t res = a + b;
+    b ^= a;
+    state.a = ((a << 55) | (a >> 9)) ^ b ^ (b << 14);
+    state.b = (b << 36) | (b >> 28);
+    return res;
 }
 
 void

@@ -23,7 +23,6 @@
 #include "bitboards.h"
 #include "knur.h"
 #include "position.h"
-#include "rand.h"
 #include "util.h"
 
 static inline void add_enpas(Position *pos, Square sq);
