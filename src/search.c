@@ -88,8 +88,9 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
 
   info.nodes++;
 
-  new_pv = pv_create(MAX_PLY - pos->ply);
   last = generate_moves(GT_ALL, move_list, pos);
+
+  new_pv = pv_create(MAX_PLY - pos->ply);
 
   for (m = move_list; m != last; m++) {
     if (!is_legal(pos, *m))
@@ -170,22 +171,27 @@ quiescence(Position *pos, int alpha, int beta)
 void
 search(Position *pos)
 {
-  int score, alpha = -INFINITY, beta = INFINITY;
-  unsigned start = gettime(), i;
+  int score, depth;
+  int alpha = -INFINITY, beta = INFINITY;
+  unsigned start, i;
   Move bestmove = MOVE_NONE;
   PV *pv = pv_create(MAX_PLY);
 
   pos->ply = 0;
-  info.nodes = 0;
 
-  score = negamax(pos, pv, alpha, beta, info.depth);
+  for (depth = 1; depth <= info.depth; depth++) {
+    info.nodes = 0;
+    start = gettime();
 
-  bestmove = *pv->line;
-  printf("info depth %d score cp %d nodes %lu time %d pv",
-      info.depth, score, info.nodes, gettime() - start);
-  for (i = 0; i < pv->len; i++)
-    printf(" %s", mtstr(pv->line[i]));
-  printf("\n");
+    score = negamax(pos, pv, alpha, beta, depth);
+    bestmove = *pv->line;
+
+    printf("info depth %d score cp %d nodes %lu time %d pv",
+        depth, score, info.nodes, gettime() - start);
+    for (i = 0; i < pv->len; i++)
+      printf(" %s", mtstr(pv->line[i]));
+    printf("\n");
+  }
 
   printf("bestmove %s\n", mtstr(bestmove));
 
