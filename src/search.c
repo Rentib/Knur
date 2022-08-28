@@ -22,6 +22,7 @@
 #include "evaluate.h"
 #include "knur.h"
 #include "movegen.h"
+#include "movesort.h"
 #include "position.h"
 #include "search.h"
 #include "util.h"
@@ -77,7 +78,6 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
   Move *m, *last, move_list[256];
   U64 checkers = attackers_to(pos, pos->ksq[pos->turn], ~pos->empty)
                & pos->color[!pos->turn];
-  unsigned legalmove = 0;
   PV *new_pv;
 
   if (!depth) {
@@ -89,13 +89,14 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
   info.nodes++;
 
   last = generate_moves(GT_ALL, move_list, pos);
+  last = process_moves(move_list, last, MOVE_NONE, pos);
 
   new_pv = pv_create(MAX_PLY - pos->ply);
 
+  if (move_list == last)
+    return checkers ? pos->ply - CHECKMATE : STALEMATE;
+
   for (m = move_list; m != last; m++) {
-    if (!is_legal(pos, *m))
-      continue;
-    legalmove++;
     do_move(pos, *m);
     value = -negamax(pos, new_pv, -beta, -alpha, depth - 1);
     undo_move(pos, *m);
@@ -114,9 +115,6 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
   }
 
   pv_free(new_pv);
-
-  if (!legalmove)
-    return checkers ? pos->ply - CHECKMATE : STALEMATE;
 
   return alpha;
 }
@@ -151,10 +149,13 @@ quiescence(Position *pos, int alpha, int beta)
 
   Move *m, *last, move_list[256];
   last = generate_moves(GT_CAPTURES, move_list, pos);
+  last = process_moves(move_list, last, MOVE_NONE, pos);
+
+  if (move_list == last)
+    return attackers_to(pos, pos->ksq[pos->turn], ~pos->empty) 
+      & pos->color[!pos->turn] ? pos->ply - CHECKMATE : STALEMATE;
 
   for (m = move_list; m != last; m++) {
-    if (!is_legal(pos, *m))
-      continue;
     do_move(pos, *m);
     value = -quiescence(pos, -beta, -alpha);
     undo_move(pos, *m);

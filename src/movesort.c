@@ -20,6 +20,20 @@
 #include "movesort.h"
 #include "position.h"
 
+static const int mvv[] = {
+  [  PAWN] = 9200,
+  [KNIGHT] = 9300,
+  [BISHOP] = 9400,
+  [  ROOK] = 9500,
+  [ QUEEN] = 10000,
+  [  KING] = -1,  /* it should be impossible to capture a king */
+  [  NONE] = 100, /* move is not a capture */
+};
+
+/** \brief Sets score of a move.
+ * \param[in,out] m - pointer to a move;
+ * \param[in] val   - value that we want to assign to a move.
+ */
 static inline void
 set_score(Move *m, int val)
 {
@@ -29,14 +43,34 @@ set_score(Move *m, int val)
 Move *
 process_moves(Move *begin, Move *end, Move hashmove, const Position *pos)
 {
+  Square from, to;
   Move *m;
   for (m = begin; m != end; m++) {
     if (is_legal(pos, *m)) {
-      /* move scoring */
       if (*m == hashmove) {
         set_score(m, 16969);
       } else {
-        set_score(m, 420);
+        switch (TYPE_OF(*m)) {
+        case NORMAL:
+          from = FROM_SQ(*m), to = TO_SQ(*m);
+          if (pos->board[to] != NONE) {
+            /* capture */
+            set_score(m, mvv[pos->board[to]] - pos->board[from]);
+          } else {
+            /* quiet move */
+            set_score(m, 0);
+          }
+          break;
+        case PROMOTION:
+          set_score(m, 10000);
+          break;
+        case CASTLE:
+          set_score(m, 5000);
+          break;
+        case EN_PASSANT:
+          set_score(m, 7000);
+          break;
+        }
       }
       *begin++ = *m;
     }
