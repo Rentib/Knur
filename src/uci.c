@@ -112,10 +112,10 @@ parse_move(Position *pos, char *move_string)
       continue;
     if (TYPE_OF(*m) == PROMOTION)
       switch (PROMOTION_TYPE(*m)) {
-      case KNIGHT: if (move_string[5] == 'n') return *m;
-      case BISHOP: if (move_string[5] == 'b') return *m;
-      case   ROOK: if (move_string[5] == 'r') return *m;
-      case  QUEEN: if (move_string[5] == 'q') return *m;
+      case KNIGHT: if (move_string[4] == 'n') return *m;
+      case BISHOP: if (move_string[4] == 'b') return *m;
+      case   ROOK: if (move_string[4] == 'r') return *m;
+      case  QUEEN: if (move_string[4] == 'q') return *m;
       }
     else
       return *m;
