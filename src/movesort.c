@@ -79,7 +79,14 @@ process_moves(Move *begin, Move *end, Move hashmove, const Position *pos)
 }
 
 void
-sort_moves(Move *begin, Move *end)
+sort_moves(Move *begin, Move *end /* begin != end */)
 {
-  (void)begin, (void)end;
+  Move *m, *p, *q, tmp;
+  for (m = begin, p = begin + 1; p != end; ++p) {
+    tmp = *p;
+    *p = *++m;
+    for (q = m; q != begin && *(q - 1) < tmp; --q)
+      *q = *(q - 1);
+    *q = tmp;
+  }
 }

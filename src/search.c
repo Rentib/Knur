@@ -91,10 +91,11 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
   last = generate_moves(GT_ALL, move_list, pos);
   last = process_moves(move_list, last, MOVE_NONE, pos);
 
-  new_pv = pv_create(MAX_PLY - pos->ply);
-
   if (move_list == last)
     return checkers ? pos->ply - CHECKMATE : STALEMATE;
+
+  sort_moves(move_list, last);
+  new_pv = pv_create(MAX_PLY - pos->ply);
 
   for (m = move_list; m != last; m++) {
     do_move(pos, *m);
@@ -152,9 +153,9 @@ quiescence(Position *pos, int alpha, int beta)
   last = process_moves(move_list, last, MOVE_NONE, pos);
 
   if (move_list == last)
-    return attackers_to(pos, pos->ksq[pos->turn], ~pos->empty) 
-      & pos->color[!pos->turn] ? pos->ply - CHECKMATE : STALEMATE;
+    return alpha;
 
+  sort_moves(move_list, last);
   for (m = move_list; m != last; m++) {
     do_move(pos, *m);
     value = -quiescence(pos, -beta, -alpha);
