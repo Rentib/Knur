@@ -31,8 +31,9 @@ typedef struct SearchInfo SearchInfo;
  */
 struct SearchInfo {
   /**{*/
-  int quit; /**< Flag for quitting program. */
-  int depth; /**< Depth of search. */
+  int quit;       /**< Flag for quitting program; */
+  int depth;      /**< Depth of search; */
+  uint64_t nodes; /** Nodes visited during search. */
   /**}*/
 };
 

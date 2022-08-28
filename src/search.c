@@ -39,7 +39,7 @@ typedef struct PV PV;
 /** \struct PV
  * A structure for storing principle variation.
  * Dynamic memory management seems to be faster in this case.
- * When running search for 2'323'511'178 nodes
+ * When running search for 2 323 511 178 nodes
  * moves[64] -> 193427ms
  * moves*    -> 168569ms
  */
@@ -54,6 +54,7 @@ static const char *mtstr(Move m);
 static int negamax(Position *pos, PV *pv, int alpha, int beta, int depth);
 static PV *pv_create(size_t len);
 static void pv_free(PV *pv);
+static int quiescence(Position *pos, int alpha, int beta);
 
 SearchInfo info;
 
@@ -81,9 +82,11 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
 
   if (!depth) {
     if (!checkers)
-      return evaluate(pos);
+      return quiescence(pos, alpha, beta);
     depth = 1;
   }
+
+  info.nodes++;
 
   new_pv = pv_create(MAX_PLY - pos->ply);
   last = generate_moves(GT_ALL, move_list, pos);
@@ -135,6 +138,35 @@ pv_free(PV *pv)
   }
 }
 
+static int
+quiescence(Position *pos, int alpha, int beta)
+{
+  info.nodes++;
+  int value = evaluate(pos);
+  if (value >= beta)
+    return beta;
+  if (value > alpha)
+    alpha = value;
+
+  Move *m, *last, move_list[256];
+  last = generate_moves(GT_CAPTURES, move_list, pos);
+
+  for (m = move_list; m != last; m++) {
+    if (!is_legal(pos, *m))
+      continue;
+    do_move(pos, *m);
+    value = -quiescence(pos, -beta, -alpha);
+    undo_move(pos, *m);
+
+    if (value >= beta)
+      return value;
+    if (value > alpha)
+      alpha = value;
+  }
+
+  return alpha;
+}
+
 void
 search(Position *pos)
 {
@@ -144,12 +176,13 @@ search(Position *pos)
   PV *pv = pv_create(MAX_PLY);
 
   pos->ply = 0;
+  info.nodes = 0;
 
   score = negamax(pos, pv, alpha, beta, info.depth);
 
   bestmove = *pv->line;
   printf("info depth %d score cp %d nodes %lu time %d pv",
-      info.depth, score, 0UL, gettime() - start);
+      info.depth, score, info.nodes, gettime() - start);
   for (i = 0; i < pv->len; i++)
     printf(" %s", mtstr(pv->line[i]));
   printf("\n");
