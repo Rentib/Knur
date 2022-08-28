@@ -21,6 +21,7 @@
 
 #include "position.h"
 
+void evaluation_init(void);
 int evaluate(const Position *pos);
 
 #endif /* KNUR_EVALUATE_H_ */

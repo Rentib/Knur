@@ -20,6 +20,7 @@
 #include <stdlib.h>
 
 #include "bitboards.h"
+#include "evaluate.h"
 #include "position.h"
 #include "uci.h"
 
@@ -29,6 +30,7 @@ main(/* int argc, char *argv[] */)
   printf("Knur by Stanisław Bitner\n");
   bitboards_init();
   zobrist_init();
+  evaluation_init();
 
   uci_loop();
 
