@@ -25,6 +25,7 @@
 #include "movesort.h"
 #include "position.h"
 #include "search.h"
+#include "tt.h"
 #include "util.h"
 
 /** \typedef PV
@@ -88,7 +89,8 @@ static int
 negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
 {
   int value;
-  Move *m, *last, move_list[256], hashmove;
+  Move bestmove = MOVE_NONE, hashmove;
+  Move *m, *last, move_list[256];
   U64 checkers = attackers_to(pos, pos->ksq[pos->turn], ~pos->empty)
                & pos->color[!pos->turn];
   PV *new_pv;
@@ -122,6 +124,11 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
   info.nodes++;
 
   hashmove = pos->ply ? MOVE_NONE : info.bestmove;
+
+  if (pos->ply && tt_probe(pos->tt, pos->key, &value, &hashmove,
+                           depth, alpha, beta, pos->ply))
+    return value;
+
   last = generate_moves(GT_ALL, move_list, pos);
   last = process_moves(move_list, last, hashmove, pos);
 
@@ -146,6 +153,8 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
         pos->killer[1][pos->ply] = pos->killer[0][pos->ply];
         pos->killer[0][pos->ply] = *m & 0xFFFF;
       }
+      /* store it in transposition table */
+      tt_store(pos->tt, pos->key, value, *m & 0xFFFF, depth, TT_BETA);
       return value;
     }
 
@@ -154,10 +163,13 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
       pv->len = new_pv->len + 1;
       memcpy(pv->line + 1, new_pv->line, new_pv->len * sizeof(Move));
       alpha = value;
+      bestmove = *m;
     }
   }
 
   pv_free(new_pv);
+  tt_store(pos->tt, pos->key, alpha, bestmove & 0xFFFF, depth,
+           bestmove == MOVE_NONE ? TT_ALPHA : TT_PV);
 
   return alpha;
 }
