@@ -178,6 +178,8 @@ pos_set(Position *pos, const char *fen)
   for (i = 0; i < LENGTH(pos->ksq); i++)
     pos->ksq[i] = SQ_NONE;
   pos->game_ply = 0;
+  for (i = 0; i < LENGTH(pos->material); i++)
+    pos->material[i] = 0;
   pos->key = 0ULL;
   for (i = 0; i < LENGTH(pos->reps); i++)
     pos->reps[i] = 0ULL;
