@@ -138,6 +138,7 @@ go(Position *pos, const char *input)
   info.depth = depth;
 
   pthread_create(&thread, NULL, go_helper, pos);
+  pthread_detach(thread);
 }
 
 static void
@@ -223,10 +224,7 @@ static void
 stop(Position *pos, const char *input)
 {
   (void)pos, (void)input;
-  if (!info.stop) {
-    info.stop = 1;
-    pthread_join(thread, NULL);
-  }
+  info.stop = 1;
 }
 
 static void
