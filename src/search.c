@@ -27,11 +27,6 @@
 #include "search.h"
 #include "util.h"
 
-#define INFINITY         69000
-#define CHECKMATE        32000
-#define STALEMATE        0
-#define MAX_PLY          64
-
 /** \typedef PV
  * Defines structure PV.
  */

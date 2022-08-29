@@ -19,6 +19,13 @@
 #ifndef KNUR_H_
 #define KNUR_H_
 
+/* search defines */
+#define INFINITY         69000
+#define CHECKMATE        32000
+#define STALEMATE        0
+#define MAX_PLY          64
+#define ISCHECKMATE      (CHECKMATE - MAX_PLY)
+
 typedef enum {
   WHITE, BLACK
 } Color;
