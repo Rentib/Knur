@@ -51,6 +51,7 @@ struct PV {
   /**}*/
 };
 
+static inline void checkstop(void);
 static inline int is_rep(Position *pos);
 static const char *mtstr(Move m);
 static int negamax(Position *pos, PV *pv, int alpha, int beta, int depth);
@@ -59,6 +60,13 @@ static void pv_free(PV *pv);
 static int quiescence(Position *pos, int alpha, int beta);
 
 SearchInfo info;
+
+static inline void
+checkstop(void)
+{
+  if (info.timeset == 1 && gettime() > info.stoptime)
+    info.stop = 1;
+}
 
 static inline int
 is_rep(Position *pos)
@@ -112,6 +120,9 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
     if (alpha >= beta)
       return alpha;
   }
+
+  if (!(info.nodes & 4095))
+    checkstop();
 
   info.nodes++;
 
@@ -174,6 +185,9 @@ pv_free(PV *pv)
 static int
 quiescence(Position *pos, int alpha, int beta)
 {
+  if (!(info.nodes & 4095))
+    checkstop();
+
   info.nodes++;
   int value = evaluate(pos);
   if (value >= beta)
@@ -212,6 +226,8 @@ search(Position *pos)
   PV *pv;
 
   /* setup */
+  info.stop = 0;
+  info.depth = info.depth == -1 ? MAX_PLY : info.depth;
   info.bestmove = MOVE_NONE;
   pos->ply = 0;
   pos->killer[0] = ecalloc(MAX_PLY, sizeof(Move));
@@ -224,6 +240,10 @@ search(Position *pos)
     start = gettime();
 
     score = negamax(pos, pv, alpha, beta, depth);
+
+    if (info.stop)
+      break;
+
     info.bestmove = *pv->line & 0xFFFF;
 
     printf("info depth %d ", depth);
@@ -240,6 +260,7 @@ search(Position *pos)
   printf("bestmove %s\n", mtstr(info.bestmove));
 
   /* cleanup */
+  info.stop = 1;
   free(pos->killer[0]);
   free(pos->killer[1]);
   pv_free(pv);

@@ -77,18 +77,59 @@ static void
 go(Position *pos, const char *input)
 {
   char *token = NULL;
-  int perft_depth = 0, depth = 0;
+  int perft_depth = -1, depth = -1;
+  int movestogo = 30, movetime = -1;
+  int time = -1, inc = 0;
+
+  if (!info.stop)
+    return;
+
+  info.timeset = 0;
+
+  if (pos->turn == WHITE) {
+    if ((token = strstr(input, "winc")))
+      inc = atoi(token + 5);
+    if ((token = strstr(input, "wtime")))
+      time = atoi(token + 6);
+  } else {
+    if ((token = strstr(input, "binc")))
+      inc = atoi(token + 5);
+    if ((token = strstr(input, "btime")))
+      time = atoi(token + 6);
+  }
+
+  if ((token = strstr(input, "movestogo")))
+    movestogo = atoi(token + 10);
+  if ((token = strstr(input, "movetime")))
+    movetime = atoi(token + 10);
+
   if ((token = strstr(input, "perft")))
     perft_depth = atoi(token + 6);
+
   if ((token = strstr(input, "depth")))
     depth = atoi(token + 6);
 
-  if (perft_depth) {
+  if (perft_depth != -1) {
     perft(pos, perft_depth);
     return;
   }
 
+  info.starttime = gettime();
+
+  if (movetime != -1) {
+    movestogo = 1;
+    time = movetime;
+  }
+
+  if (time != -1) {
+    time /= movestogo;
+    time -= 50;
+    info.timeset = 1;
+    info.stoptime = info.starttime + time + inc;
+  }
+
   info.depth = depth;
+
   search(pos);
 }
 
@@ -185,7 +226,7 @@ uci_loop(void)
   size_t i, len;
   pos_set(&pos, STARTPOS);
 
-  for (info.quit = 0; !info.quit; ) {
+  for (info.quit = 0, info.stop = 1; !info.quit; ) {
     memset(input, 0, sizeof(input));
     fflush(stdout);
 

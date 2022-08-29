@@ -33,6 +33,10 @@ typedef struct SearchInfo SearchInfo;
 struct SearchInfo {
   /**{*/
   int quit;       /**< Flag for quitting program; */
+  int stop;       /**< Flag for stopping search; */
+  int timeset;    /**< Flag for using time control; */
+  int starttime;  /**< Start time in ms; */
+  int stoptime;   /**< Stop time in ms; */
   int depth;      /**< Depth of search; */
   uint64_t nodes; /**< Nodes visited during search; */
   Move bestmove;  /**< Best move found. */
