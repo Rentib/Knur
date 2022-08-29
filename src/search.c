@@ -141,6 +141,9 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
     value = -negamax(pos, new_pv, -beta, -alpha, depth - 1);
     undo_move(pos, *m);
 
+    if (info.stop)
+      return 0;
+
     if (value >= beta) {
       pv_free(new_pv);
       /* killer move */
@@ -207,6 +210,9 @@ quiescence(Position *pos, int alpha, int beta)
     do_move(pos, *m);
     value = -quiescence(pos, -beta, -alpha);
     undo_move(pos, *m);
+
+    if (info.stop)
+      return 0;
 
     if (value >= beta)
       return value;

@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
 #include "knur.h"
 #include "movegen.h"
@@ -48,12 +49,16 @@ struct Parser {
 
 static void display(Position *, const char *);
 static void go(Position *, const char *);
+static void *go_helper(void *);
 static void isready(Position *, const char *);
 static Move parse_move(Position *pos, char *move_string);
 static void position(Position *, const char *);
 static void quit(Position *, const char *);
+static void stop(Position *, const char *);
 static void uci(Position *, const char *);
 static void ucinewgame(Position *, const char *);
+
+static pthread_t thread;
 
 static Parser parser[] = {
   { "d", display },
@@ -62,6 +67,7 @@ static Parser parser[] = {
   { "position", position },
   { "q", quit },
   { "quit", quit },
+  { "stop", stop },
   { "uci", uci },
   { "ucinewgame", ucinewgame },
 };
@@ -70,7 +76,8 @@ static void
 display(Position *pos, const char *input)
 {
   (void)input;
-  pos_print(pos);
+  if (info.stop)
+    pos_print(pos);
 }
 
 static void
@@ -130,14 +137,22 @@ go(Position *pos, const char *input)
 
   info.depth = depth;
 
-  search(pos);
+  pthread_create(&thread, NULL, go_helper, pos);
+}
+
+static void
+*go_helper(void *pos)
+{
+  search((Position *)pos);
+  pthread_exit(NULL);
 }
 
 static void
 isready(Position *pos, const char *input)
 {
   (void)pos, (void)input;
-  printf("readyok\n");
+  if (info.stop)
+    printf("readyok\n");
 }
 
 static Move
@@ -168,6 +183,10 @@ static void
 position(Position *pos, const char *input)
 {
   char *token = NULL;
+
+  if (!info.stop)
+    return;
+
   if (!strncmp(input, "startpos", 8)) {
     pos_set(pos, STARTPOS);
     input += 8;
@@ -196,24 +215,37 @@ position(Position *pos, const char *input)
 static void
 quit(Position *pos, const char *input)
 {
-  (void)pos, (void)input;
+  stop(pos, input);
   info.quit = 1;
+}
+
+static void
+stop(Position *pos, const char *input)
+{
+  (void)pos, (void)input;
+  if (!info.stop) {
+    info.stop = 1;
+    pthread_join(thread, NULL);
+  }
 }
 
 static void
 uci(Position *pos, const char *input)
 {
   (void)pos, (void)input;
-  printf("id name Knur\n");
-  printf("id author Stanisław Bitner\n");
-  printf("uciok\n");
+  if (info.stop) {
+    printf("id name Knur\n");
+    printf("id author Stanisław Bitner\n");
+    printf("uciok\n");
+  }
 }
 
 static void
 ucinewgame(Position *pos, const char *input)
 {
   (void)input;
-  pos_set(pos, STARTPOS);
+  if (info.stop)
+    pos_set(pos, STARTPOS);
 }
 
 void
@@ -226,9 +258,11 @@ uci_loop(void)
   size_t i, len;
   pos_set(&pos, STARTPOS);
 
+  setbuf(stdin, NULL);
+  setbuf(stdout, NULL);
+
   for (info.quit = 0, info.stop = 1; !info.quit; ) {
     memset(input, 0, sizeof(input));
-    fflush(stdout);
 
     readline(input);
     for (i = 0, p = parser; i < LENGTH(parser); i++, p++) {
