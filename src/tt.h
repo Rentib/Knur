@@ -24,6 +24,17 @@
 
 #include "knur.h"
 
+#define MEGABYTE        0x100000ULL
+
+/** \typedef EntryType
+ * Defines types of entries inside a transposition table.
+ * TT_PV    - pv-node;
+ * TT_ALPHA - fail low node;
+ * TT_BETA  - fail high node;
+ * TT_NONE  - nothing.
+ */
+typedef enum { TT_PV, TT_ALPHA, TT_BETA, TT_NONE } EntryType;
+
 /** \typedef Key
  * Defines Key as a 64 bit unsigned integer.
  */

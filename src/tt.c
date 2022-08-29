@@ -31,15 +31,21 @@ typedef struct Entry Entry;
  * A structure for storing TT entries.
  */
 struct Entry {
-  Key key;
-  Move best;
-  int depth;
-  int age;
+  /**{*/
+  Key key;        /**< Zobrist hash of a position; */
+  int score;      /**< Score of a position; */
+  Move best;      /**< Best move of a position; */
+  int depth;      /**< Depth up to which the position has been checked; */
+  EntryType type; /** Type of an entry; */
+  int age;        /** Age of an entry. */
+  /**}*/
 };
 
 struct TT {
-  size_t size;
-  Entry *entries;
+  /**{*/
+  size_t size;    /**< Number of entries inside the transposition table; */
+  Entry *entries; /**< Array of entries. */
+  /**}*/
 };
 
 TT *
@@ -51,8 +57,10 @@ tt_create(size_t size)
   tt->entries = emalloc(tt->size * sizeof(Entry));
   for (i = 0; i < tt->size; i++)
     tt->entries[i] = (Entry){ .key = 0ULL,
+                              .score = 0,
                               .best = MOVE_NONE,
-                              .depth = -1,
+                              .depth = 0,
+                              .type = TT_NONE,
                               .age = -1 };
   return tt;
 }
