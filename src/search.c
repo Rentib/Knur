@@ -91,6 +91,13 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
   PV *new_pv;
 
   if (pos->ply) {
+    /* dont end search if in check */
+    if (!depth) {
+      if (!checkers)
+        return quiescence(pos, alpha, beta);
+      depth = 1;
+    }
+
     /* have to end search or it will seg fault */
     if (pos->ply >= MAX_PLY)
       return checkers ? 0 : evaluate(pos);
@@ -99,12 +106,11 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
     if (pos->st->fifty >= 100 || is_rep(pos))
       return 0;
 
-    /* dont end search if in check */
-    if (!depth) {
-      if (!checkers)
-        return quiescence(pos, alpha, beta);
-      depth = 1;
-    }
+    /* mate distance pruning */
+    alpha = MAX(alpha, pos->ply - CHECKMATE);
+    beta  = MIN(beta, CHECKMATE - pos->ply - 1);
+    if (alpha >= beta)
+      return alpha;
   }
 
   info.nodes++;
@@ -212,6 +218,7 @@ search(Position *pos)
   pos->killer[1] = ecalloc(MAX_PLY, sizeof(Move));
   pv = pv_create(MAX_PLY);
 
+  /* iterative deepening */
   for (depth = 1; depth <= info.depth; depth++) {
     info.nodes = 0;
     start = gettime();
