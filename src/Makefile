@@ -18,7 +18,7 @@ CFLAGS = -std=c99 -pthread -Wall -Wextra -pedantic -Wno-deprecated-declarations 
 LDFLAGS = 
 CC = cc
 
-REQ = bitboards evaluate movegen movesort perft position search uci util
+REQ = bitboards evaluate movegen movesort perft position search tt uci util
 
 all: options main
 

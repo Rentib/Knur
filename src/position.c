@@ -17,12 +17,12 @@
 */
 
 #include <ctype.h>
-#include <stdint.h>
 #include <stdio.h>
 
 #include "bitboards.h"
 #include "knur.h"
 #include "position.h"
+#include "tt.h"
 #include "util.h"
 
 static inline void add_enpas(Position *pos, Square sq);
@@ -183,6 +183,8 @@ pos_set(Position *pos, const char *fen)
   pos->key = 0ULL;
   for (i = 0; i < LENGTH(pos->reps); i++)
     pos->reps[i] = 0ULL;
+  if (!pos->tt)
+    pos->tt = tt_create(0x100000 * 4); /* 4MiB */
 
   while (pos->st) {
     st = pos->st->prev;

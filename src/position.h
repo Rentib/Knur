@@ -19,15 +19,9 @@
 #ifndef KNUR_POSITION_H_
 #define KNUR_POSITION_H_
 
-#include <stdint.h>
-
 #include "bitboards.h"
 #include "knur.h"
-
-/** \typedef Key
- * Defines Key as a 64 bit unsigned integer.
- */
-typedef uint64_t Key;
+#include "tt.h"
 
 /** \typedef State
  * Defines structure State.
@@ -67,7 +61,8 @@ struct Position {
   int       material[2]; /**< [Color] Material of each side in centipawns; */
   Key       key;         /**< Zobrist hash; */
   Key       reps[1024];  /**< [game ply] Hash table for detecting repetitions; */
-  Move     *killer[2];   /**< [ply][index] https://www.chessprogramming.org/Killer_Heuristic */
+  Move     *killer[2];   /**< [ply][index] https://www.chessprogramming.org/Killer_Heuristic; */
+  TT       *tt;          /**< Transposition table; */
   State    *st;          /**< Position state. */
 };
 

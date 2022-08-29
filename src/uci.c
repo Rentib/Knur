@@ -252,7 +252,7 @@ void
 uci_loop(void)
 {
   char input[1024];
-  Position pos = { .st = NULL };
+  Position pos = { .st = NULL, .tt = NULL };
   State *st;
   Parser *p;
   size_t i, len;
@@ -281,4 +281,5 @@ uci_loop(void)
     pos.st = pos.st->prev;
     free(st);
   }
+  tt_free(pos.tt);
 }
