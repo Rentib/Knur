@@ -53,6 +53,7 @@ TT *
 tt_create(size_t size)
 {
   TT *tt = emalloc(sizeof(TT));
+  size *= MEGABYTE;
   for (tt->size = 1; tt->size < size / sizeof(Entry); tt->size <<= 1);
   tt->entries = emalloc(tt->size * sizeof(Entry));
   tt_clear(tt);

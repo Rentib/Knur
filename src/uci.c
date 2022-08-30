@@ -27,6 +27,7 @@
 #include "perft.h"
 #include "position.h"
 #include "search.h"
+#include "tt.h"
 #include "uci.h"
 #include "util.h"
 
@@ -54,6 +55,7 @@ static void isready(Position *, const char *);
 static Move parse_move(Position *pos, char *move_string);
 static void position(Position *, const char *);
 static void quit(Position *, const char *);
+static void setoption(Position *, const char *);
 static void stop(Position *, const char *);
 static void uci(Position *, const char *);
 static void ucinewgame(Position *, const char *);
@@ -67,6 +69,7 @@ static Parser parser[] = {
   { "position", position },
   { "q", quit },
   { "quit", quit },
+  { "setoption", setoption },
   { "stop", stop },
   { "uci", uci },
   { "ucinewgame", ucinewgame },
@@ -221,6 +224,21 @@ quit(Position *pos, const char *input)
 }
 
 static void
+setoption(Position *pos, const char *input)
+{
+  int mb;
+  while (isspace(*input))
+    input++;
+  if (!strncmp("name Hash value ", input, 16)) {
+    sscanf(input, "%*s %*s %*s %d", &mb);
+    mb = MAX(MIN_HASH, MIN(mb, MAX_HASH));
+    tt_free(pos->tt);
+    pos->tt = tt_create(mb);
+    printf("info string set Hash to value %d\n", mb);
+  }
+}
+
+static void
 stop(Position *pos, const char *input)
 {
   (void)pos, (void)input;
@@ -234,6 +252,8 @@ uci(Position *pos, const char *input)
   if (info.stop) {
     printf("id name Knur\n");
     printf("id author Stanisław Bitner\n");
+    printf("option name Hash type spin default %d min %d max %d\n",
+            DEFAULT_HASH, MIN_HASH, MAX_HASH);
     printf("uciok\n");
   }
 }

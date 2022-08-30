@@ -184,7 +184,7 @@ pos_set(Position *pos, const char *fen)
   for (i = 0; i < LENGTH(pos->reps); i++)
     pos->reps[i] = 0ULL;
   if (!pos->tt)
-    pos->tt = tt_create(4 * MEGABYTE); /* 4MiB */
+    pos->tt = tt_create(DEFAULT_HASH); /* 4MiB */
 
   while (pos->st) {
     st = pos->st->prev;

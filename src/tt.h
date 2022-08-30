@@ -24,6 +24,9 @@
 
 #include "knur.h"
 
+#define MAX_HASH        128
+#define MIN_HASH        2
+#define DEFAULT_HASH    16
 #define MEGABYTE        0x100000ULL
 
 /** \typedef EntryType
