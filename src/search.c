@@ -34,7 +34,7 @@
 typedef struct PV PV;
 
 /** \struct PV
- * A structure for storing principle variation.
+ * A structure for storing principal variation.
  * Dynamic memory management seems to be faster in this case.
  * When running search for 2 323 511 178 nodes
  * moves[64] -> 193427ms
@@ -92,6 +92,7 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
   int score = -CHECKMATE;
   int bestscore = -CHECKMATE;
   int oldalpha = alpha;
+  int pvnode = beta - alpha != 1, pvsearch = 1;
   Move bestmove = MOVE_NONE;
   Move hashmove;
   Move move_list[256], *last, *m;
@@ -129,8 +130,8 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
 
   hashmove = isroot ? info.bestmove : MOVE_NONE;
 
-  if (pos->ply && tt_probe(pos->tt, pos->key, &score, &hashmove,
-                           depth, alpha, beta, pos->ply))
+  if (!isroot && !pvnode && tt_probe(pos->tt, pos->key, &score, &hashmove,
+                                     depth, alpha, beta, pos->ply))
     return score;
 
   last = generate_moves(GT_ALL, move_list, pos);
@@ -144,7 +145,16 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
 
   for (m = move_list; m != last; m++) {
     do_move(pos, *m);
-    score = -negamax(pos, new_pv, -beta, -alpha, depth - 1);
+
+    /* principal variation search */
+    if (pvsearch) {
+      score = -negamax(pos, new_pv, -beta, -alpha, depth - 1);
+    } else {
+      score = -negamax(pos, new_pv, -alpha - 1, -alpha, depth - 1);
+      if (score > alpha)
+        score = -negamax(pos, new_pv, -beta, -alpha, depth - 1);
+    }
+
     undo_move(pos, *m);
 
     if (info.stop)
@@ -169,6 +179,7 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
         pv->len = new_pv->len + 1;
         memcpy(pv->line + 1, new_pv->line, new_pv->len * sizeof(Move));
         alpha = score;
+        pvsearch = 0;
       }
     }
   }
