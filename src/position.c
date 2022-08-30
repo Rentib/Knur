@@ -29,7 +29,7 @@ static inline void add_enpas(Position *pos, Square sq);
 static inline void add_piece(Position *pos, PieceType pt, Color c, Square sq);
 static inline void rem_enpas(Position *pos);
 static inline void rem_piece(Position *pos, PieceType pt, Color c, Square sq);
-static inline void flip_furn(Position *pos);
+static inline void flip_turn(Position *pos);
 static inline void update_castle(Position *pos, Square from, Square to);
 
 /** Numbers for & operation that update castle rights. */
@@ -105,7 +105,7 @@ rem_piece(Position *pos, PieceType pt, Color c, Square sq)
 }
 
 static inline void
-flip_furn(Position *pos)
+flip_turn(Position *pos)
 {
   pos->key ^= zobrist.turn;
   pos->turn ^= 1;
@@ -223,7 +223,7 @@ pos_set(Position *pos, const char *fen)
   pos->ksq[BLACK] = GET_SQUARE(pos->color[BLACK] & pos->piece[KING]);
 
   if (*(++fen) == 'b')
-    flip_furn(pos);
+    flip_turn(pos);
   while (*(++fen) == ' ');
 
   while (*fen != ' ') {
@@ -296,7 +296,7 @@ do_move(Position *pos, Move m)
     }
   }
 
-  flip_furn(pos);
+  flip_turn(pos);
   update_castle(pos, from, to);
 
   pos->empty = ~(pos->color[WHITE] | pos->color[BLACK]);
@@ -306,7 +306,7 @@ void
 undo_move(Position *pos, Move m)
 {
   pos->key ^= zobrist.castle[pos->st->castle];
-  flip_furn(pos);
+  flip_turn(pos);
 
   const Color us = pos->turn, them = !us;
   const Square from = FROM_SQ(m), to = TO_SQ(m);
@@ -356,9 +356,41 @@ undo_move(Position *pos, Move m)
 }
 
 void
+do_null_move(Position *pos)
+{
+  State *st = emalloc(sizeof(State));
+  *st = *(pos->st);
+  st->fifty++;
+  st->captured = NONE;
+  st->prev = pos->st;
+  pos->st = st;
+  pos->reps[pos->game_ply++] = pos->key;
+  pos->ply++;
+
+  rem_enpas(pos);
+  flip_turn(pos);
+}
+
+void
+undo_null_move(Position *pos)
+{
+  flip_turn(pos);
+
+  State *st = pos->st->prev;
+  free(pos->st);
+  pos->st = st;
+
+  if (pos->st->enpas != SQ_NONE)
+    add_enpas(pos, pos->st->enpas);
+
+  pos->game_ply--;
+  pos->ply--;
+}
+void
 zobrist_init(void)
 {
   unsigned i, j, k;
+  zobrist.turn = rand_u64();
   for (i = 0; i < 2; i++)
     for (j = 0; j < 6; j++)
       for (k = 0; k < 64; k++)

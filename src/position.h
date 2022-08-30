@@ -89,6 +89,16 @@ void do_move(Position *pos, Move m);
  */
 void undo_move(Position *pos, Move m);
 
+/** \brief Makes a null move.
+ * \param[in,out] pos - pointer to a structure containing a position;
+ */
+void do_null_move(Position *pos);
+
+/** \brief Undoes a null move.
+ * \param[in,out] pos - pointer to a structure containing a position;
+ */
+void undo_null_move(Position *pos);
+
 /** \brief Initialises numbers used for zobrist hashing.
  * https://www.chessprogramming.org/Zobrist_Hashing
  */
