@@ -17,6 +17,7 @@
 */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "evaluate.h"
@@ -134,14 +135,34 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
                                      depth, alpha, beta, pos->ply))
     return score;
 
+  new_pv = pv_create(MAX_PLY - pos->ply);
+
+  if (!pvnode && !checkers) {
+    /* null move pruning */
+    if (depth >= 4 && info.donull
+    && pos->material[pos->turn] > 800) {
+      info.donull = 0;
+      do_null_move(pos);
+      score = -negamax(pos, new_pv, -beta, -beta + 1, depth - 3);
+      undo_null_move(pos);
+      info.donull = 1;
+
+      if (score >= beta && abs(score) < ISCHECKMATE) {
+        pv_free(new_pv);
+        return beta;
+      }
+    }
+  }
+
   last = generate_moves(GT_ALL, move_list, pos);
   last = process_moves(move_list, last, hashmove, pos);
 
-  if (move_list == last)
+  if (move_list == last) {
+    pv_free(new_pv);
     return checkers ? pos->ply - CHECKMATE : STALEMATE;
+  }
 
   sort_moves(move_list, last);
-  new_pv = pv_create(MAX_PLY - pos->ply);
 
   for (m = move_list; m != last; m++) {
     do_move(pos, *m);
@@ -258,6 +279,7 @@ search(Position *pos)
   /* setup */
   info.stop = 0;
   info.depth = info.depth == -1 ? MAX_PLY : info.depth;
+  info.donull = 1;
   info.bestmove = MOVE_NONE;
   pos->ply = 0;
   pos->killer[0] = ecalloc(MAX_PLY, sizeof(Move));

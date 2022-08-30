@@ -37,6 +37,7 @@ struct SearchInfo {
   int timeset;    /**< Flag for using time control; */
   int starttime;  /**< Start time in ms; */
   int stoptime;   /**< Stop time in ms; */
+  int donull;     /**< Flag for checking if we can do null move pruning; */
   int depth;      /**< Depth of search; */
   uint64_t nodes; /**< Nodes visited during search; */
   Move bestmove;  /**< Best move found. */
