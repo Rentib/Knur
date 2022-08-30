@@ -88,14 +88,18 @@ mtstr(Move m)
 static int
 negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
 {
-  int value;
-  Move bestmove = MOVE_NONE, hashmove;
-  Move *m, *last, move_list[256];
+  int isroot = !pos->ply;
+  int score = -CHECKMATE;
+  int bestscore = -CHECKMATE;
+  int oldalpha = alpha;
+  Move bestmove = MOVE_NONE;
+  Move hashmove;
+  Move move_list[256], *last, *m;
+  PV *new_pv;
   U64 checkers = attackers_to(pos, pos->ksq[pos->turn], ~pos->empty)
                & pos->color[!pos->turn];
-  PV *new_pv;
 
-  if (pos->ply) {
+  if (!isroot) {
     /* dont end search if in check */
     if (!depth) {
       if (!checkers)
@@ -113,7 +117,7 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
 
     /* mate distance pruning */
     alpha = MAX(alpha, pos->ply - CHECKMATE);
-    beta  = MIN(beta, CHECKMATE - pos->ply - 1);
+    beta  = MIN(beta,  CHECKMATE - pos->ply - 1);
     if (alpha >= beta)
       return alpha;
   }
@@ -123,11 +127,11 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
 
   info.nodes++;
 
-  hashmove = pos->ply ? MOVE_NONE : info.bestmove;
+  hashmove = isroot ? info.bestmove : MOVE_NONE;
 
-  if (pos->ply && tt_probe(pos->tt, pos->key, &value, &hashmove,
+  if (pos->ply && tt_probe(pos->tt, pos->key, &score, &hashmove,
                            depth, alpha, beta, pos->ply))
-    return value;
+    return score;
 
   last = generate_moves(GT_ALL, move_list, pos);
   last = process_moves(move_list, last, hashmove, pos);
@@ -140,36 +144,38 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
 
   for (m = move_list; m != last; m++) {
     do_move(pos, *m);
-    value = -negamax(pos, new_pv, -beta, -alpha, depth - 1);
+    score = -negamax(pos, new_pv, -beta, -alpha, depth - 1);
     undo_move(pos, *m);
 
     if (info.stop)
       return 0;
 
-    if (value >= beta) {
-      pv_free(new_pv);
-      /* killer move */
-      if (pos->board[TO_SQ(*m)] == NONE) {
-        pos->killer[1][pos->ply] = pos->killer[0][pos->ply];
-        pos->killer[0][pos->ply] = *m & 0xFFFF;
+    if (score > bestscore) {
+      bestscore = score;
+      bestmove  = *m;
+      if (score >= beta) {
+        pv_free(new_pv);
+        /* killer move */
+        if (pos->board[TO_SQ(*m)] == NONE) {
+          pos->killer[1][pos->ply] = pos->killer[0][pos->ply];
+          pos->killer[0][pos->ply] = *m & 0xFFFF;
+        }
+        tt_store(pos->tt, pos->key, score, *m & 0xFFFF, depth, TT_BETA);
+        return score;
       }
-      /* store it in transposition table */
-      tt_store(pos->tt, pos->key, value, *m & 0xFFFF, depth, TT_BETA);
-      return value;
-    }
 
-    if (value > alpha) {
-      pv->line[0] = *m;
-      pv->len = new_pv->len + 1;
-      memcpy(pv->line + 1, new_pv->line, new_pv->len * sizeof(Move));
-      alpha = value;
-      bestmove = *m;
+      if (score > alpha) {
+        pv->line[0] = *m;
+        pv->len = new_pv->len + 1;
+        memcpy(pv->line + 1, new_pv->line, new_pv->len * sizeof(Move));
+        alpha = score;
+      }
     }
   }
 
   pv_free(new_pv);
   tt_store(pos->tt, pos->key, alpha, bestmove & 0xFFFF, depth,
-           bestmove == MOVE_NONE ? TT_ALPHA : TT_PV);
+           alpha == oldalpha ? TT_ALPHA : TT_PV);
 
   return alpha;
 }
