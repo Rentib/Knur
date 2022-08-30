@@ -50,20 +50,21 @@ typedef struct Position Position;
  * A structure for storing position data.
  */
 struct Position {
-  Color     turn;        /**< Color of side to move; */
-  U64       empty;       /**< Bitboard of empty squares; */
-  U64       color[2];    /**< [Color] Bitboards of WHITE and BLACK pieces; */
-  U64       piece[6];    /**< [PieceType] Bitboards of all pieces; */
-  PieceType board[64];   /**< [Square] Piece standing on each square; */
-  Square    ksq[2];      /**< [Color] Square of WHITE and BLACK king; */
-  int       game_ply;    /**< PLY of game; */
-  int       ply;         /**< PLY of search; */
-  int       material[2]; /**< [Color] Material of each side in centipawns; */
-  Key       key;         /**< Zobrist hash; */
-  Key       reps[1024];  /**< [game ply] Hash table for detecting repetitions; */
-  Move     *killer[2];   /**< [ply][index] https://www.chessprogramming.org/Killer_Heuristic; */
-  TT       *tt;          /**< Transposition table; */
-  State    *st;          /**< Position state. */
+  Color     turn;         /**< Color of side to move; */
+  U64       empty;        /**< Bitboard of empty squares; */
+  U64       color[2];     /**< [Color] Bitboards of WHITE and BLACK pieces; */
+  U64       piece[6];     /**< [PieceType] Bitboards of all pieces; */
+  PieceType board[64];    /**< [Square] Piece standing on each square; */
+  Square    ksq[2];       /**< [Color] Square of both kings; */
+  int       game_ply;     /**< ply count of game; */
+  int       ply;          /**< ply count of search; */
+  int       material[2];  /**< [Color] Material of each side in centipawns; */
+  Key       key;          /**< Zobrist hash; */
+  Key       reps[1024];   /**< [game ply] Repetition table of position keys; */
+  Move     *killer[2];    /**< [ply][index] killer moves (2 per ply); */
+  int       hh[2][6][64]; /**< [Color][PieceType][Square] history moves; */
+  TT       *tt;           /**< Transposition table; */
+  State    *st;           /**< Position state. */
 };
 
 /** \brief Prints board.

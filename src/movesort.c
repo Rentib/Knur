@@ -72,7 +72,7 @@ process_moves(Move *begin, Move *end, Move hashmove, const Position *pos)
               set_score(m, 8100);
             else if (*m == pos->killer[1][pos->ply])
               set_score(m, 8000);
-            set_score(m, 0);
+            set_score(m, pos->hh[pos->turn][pos->board[from]][to]);
           }
           break;
         case PROMOTION:

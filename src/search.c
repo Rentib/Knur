@@ -188,7 +188,10 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
         pv_free(new_pv);
         /* killer move */
         if (pos->board[TO_SQ(*m)] == NONE) {
-          pos->killer[1][pos->ply] = pos->killer[0][pos->ply];
+          /* update killer moves */
+          /* we dont want both killers to be equal */
+          if (pos->killer[0][pos->ply] != (*m & 0xFFFF))
+            pos->killer[1][pos->ply] = pos->killer[0][pos->ply];
           pos->killer[0][pos->ply] = *m & 0xFFFF;
         }
         tt_store(pos->tt, pos->key, score, *m & 0xFFFF, depth, TT_BETA);
@@ -201,6 +204,9 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
         memcpy(pv->line + 1, new_pv->line, new_pv->len * sizeof(Move));
         alpha = score;
         pvsearch = 0;
+        if (pos->board[TO_SQ(*m)] == NONE)
+          pos->hh[pos->turn][pos->board[FROM_SQ(*m)]][TO_SQ(*m)] +=
+            MIN(depth * depth, 69);
       }
     }
   }
@@ -284,6 +290,7 @@ search(Position *pos)
   pos->ply = 0;
   pos->killer[0] = ecalloc(MAX_PLY, sizeof(Move));
   pos->killer[1] = ecalloc(MAX_PLY, sizeof(Move));
+  memset(pos->hh, 0, sizeof(pos->hh));
   pv = pv_create(MAX_PLY);
   tt_update(pos->tt);
 
