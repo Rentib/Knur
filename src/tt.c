@@ -32,19 +32,20 @@ typedef struct Entry Entry;
  */
 struct Entry {
   /**{*/
-  Key key;        /**< Zobrist hash of a position; */
-  int score;      /**< Score of a position; */
-  Move move;      /**< Best move of a position; */
-  int depth;      /**< Depth up to which the position has been checked; */
-  EntryType type; /** Type of an entry; */
-  int age;        /** Age of an entry. */
+  Key       key;   /**< Zobrist hash of a position; */
+  int       score; /**< Score of a position; */
+  Move      move;  /**< Best move of a position; */
+  int       depth; /**< Depth up to which the position has been checked; */
+  EntryType type;  /** Type of an entry; */
+  int       age;   /** Age of an entry. */
   /**}*/
 };
 
 struct TT {
   /**{*/
   size_t size;    /**< Number of entries inside the transposition table; */
-  Entry *entries; /**< Array of entries. */
+  Entry *entries; /**< Array of entries; */
+  int    age;     /**< Age on the transposition table. */
   /**}*/
 };
 
@@ -71,13 +72,14 @@ void
 tt_clear(TT *tt)
 {
   unsigned i;
+  tt->age = 0;
   for (i = 0; i < tt->size; i++)
     tt->entries[i] = (Entry){ .key = 0ULL,
                               .score = 0,
                               .move = MOVE_NONE,
                               .depth = 0,
                               .type = TT_NONE,
-                              .age = -1 };
+                              .age = 0 };
 }
 
 int
@@ -108,9 +110,19 @@ tt_store(TT *tt, Key key, int score, Move move, int depth, EntryType type)
   /* Always replace approach;
    * Will be improved in the future. */
   Entry *et = &tt->entries[key & (tt->size - 1)];
+
+  if (et->age == tt->age && et->key == key && et->depth > depth)
+    return;
   et->key = key;
   et->score = score;
   et->move = move;
   et->depth = depth;
   et->type = type;
+  et->age = tt->age;
+}
+
+void
+tt_update(TT *tt)
+{
+  ++tt->age;
 }

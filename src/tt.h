@@ -56,5 +56,6 @@ void tt_free(TT *tt);
 void tt_clear(TT *tt);
 int tt_probe(TT *tt, Key key, int *score, Move *move, int depth, int alpha, int beta, int ply);
 void tt_store(TT *tt, Key key, int score, Move move, int depth, EntryType type);
+void tt_update(TT *tt);
 
 #endif /* KNUR_TT_H_ */

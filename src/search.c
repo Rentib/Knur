@@ -252,6 +252,7 @@ search(Position *pos)
   pos->killer[0] = ecalloc(MAX_PLY, sizeof(Move));
   pos->killer[1] = ecalloc(MAX_PLY, sizeof(Move));
   pv = pv_create(MAX_PLY);
+  tt_update(pos->tt);
 
   /* iterative deepening */
   for (depth = 1; depth <= info.depth; depth++) {

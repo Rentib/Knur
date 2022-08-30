@@ -242,8 +242,10 @@ static void
 ucinewgame(Position *pos, const char *input)
 {
   (void)input;
-  if (info.stop)
+  if (info.stop) {
     pos_set(pos, STARTPOS);
+    tt_clear(pos->tt);
+  }
 }
 
 void
