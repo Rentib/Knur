@@ -93,7 +93,8 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
   int score = -CHECKMATE;
   int bestscore = -CHECKMATE;
   int oldalpha = alpha;
-  int pvnode = beta - alpha != 1, pvsearch = 1;
+  int pvnode = beta - alpha != 1;
+  int moves_searched = 0;
   Move bestmove = MOVE_NONE;
   Move hashmove;
   Move move_list[256], *last, *m;
@@ -164,16 +165,25 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
 
   sort_moves(move_list, last);
 
-  for (m = move_list; m != last; m++) {
+  for (m = move_list; m != last; m++, moves_searched++) {
     do_move(pos, *m);
 
-    /* principal variation search */
-    if (pvsearch) {
+    /* normal search */
+    if (!moves_searched) {
       score = -negamax(pos, new_pv, -beta, -alpha, depth - 1);
     } else {
-      score = -negamax(pos, new_pv, -alpha - 1, -alpha, depth - 1);
-      if (score > alpha)
-        score = -negamax(pos, new_pv, -beta, -alpha, depth - 1);
+      score = alpha + 1;
+      /* late move reduction */
+      if (moves_searched > 4 && depth > 3
+      &&  TYPE_OF(*m) == NORMAL && pos->st->captured == NONE
+      && !(attackers_to(pos, pos->ksq[pos->turn], ~pos->empty) & pos->color[!pos->turn]))
+        score = -negamax(pos, new_pv, -alpha - 1, -alpha, depth - 3 - !pvnode);
+      /* principal variation search */
+      if (score > alpha) {
+        score = -negamax(pos, new_pv, -alpha - 1, -alpha, depth - 1);
+        if (score > alpha)
+          score = -negamax(pos, new_pv, -beta, -alpha, depth - 1);
+      }
     }
 
     undo_move(pos, *m);
@@ -203,7 +213,6 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
         pv->len = new_pv->len + 1;
         memcpy(pv->line + 1, new_pv->line, new_pv->len * sizeof(Move));
         alpha = score;
-        pvsearch = 0;
         if (pos->board[TO_SQ(*m)] == NONE)
           pos->hh[pos->turn][pos->board[FROM_SQ(*m)]][TO_SQ(*m)] +=
             MIN(depth * depth, 69);
