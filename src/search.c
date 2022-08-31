@@ -188,14 +188,15 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
 
     undo_move(pos, *m);
 
-    if (info.stop)
+    if (info.stop) {
+      pv_free(new_pv);
       return 0;
+    }
 
     if (score > bestscore) {
       bestscore = score;
       bestmove  = *m;
       if (score >= beta) {
-        pv_free(new_pv);
         /* killer move */
         if (pos->board[TO_SQ(*m)] == NONE) {
           /* update killer moves */
@@ -205,6 +206,7 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
           pos->killer[0][pos->ply] = *m & 0xFFFF;
         }
         tt_store(pos->tt, pos->key, score, *m & 0xFFFF, depth, TT_BETA);
+        pv_free(new_pv);
         return score;
       }
 
@@ -220,10 +222,10 @@ negamax(Position *pos, PV *pv, int alpha, int beta, int depth)
     }
   }
 
-  pv_free(new_pv);
   tt_store(pos->tt, pos->key, alpha, bestmove & 0xFFFF, depth,
            alpha == oldalpha ? TT_ALPHA : TT_PV);
 
+  pv_free(new_pv);
   return alpha;
 }
 
