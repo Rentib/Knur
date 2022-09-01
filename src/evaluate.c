@@ -92,9 +92,9 @@ static const int king_pcsqt[64][2] = {
   { 10,-50}, { 20,-20}, { 20,-20}, {-10,-20}, {  0,-20}, {-10,-20}, { 20,-20}, { 20,-50},
 };
 
-static U64 rank_mask[64];      /* [Square] */
-static U64 file_mask[64];      /* [Square] */
-static U64 adj_file_mask[64];  /* [Square] */
+static U64 rank_mask[8];       /* [Rank] */
+static U64 file_mask[8];       /* [File] */
+static U64 adj_file_mask[8];   /* [File] */
 static U64 passed_mask[2][64]; /* [Color][Square] */
 
 static const int king_shield[2] = { 2, 7 };
@@ -110,18 +110,19 @@ void
 evaluation_init(void)
 {
   Square sq; File f; Rank r;
+  for (f = 0; f < 8; f++) {
+    for (r = 0; r < 8; r++) {
+      SET_BIT(file_mask[f], 8 * r + f);
+      SET_BIT(rank_mask[r], 8 * r + f);
+    }
+    adj_file_mask[f] = shift(WEST, file_mask[f]) | shift(EAST, file_mask[f]);
+  }
+
   for (sq = SQ_A8; sq <= SQ_H1; sq++) {
-    rank_mask[sq] = 0ULL;
-    file_mask[sq] = 0ULL;
-    for (r = sq >> 3, f = 0; f < 8; f++)
-      SET_BIT(rank_mask[sq], 8 * r + f);
-    for (r = 0, f = sq & 7; r < 8; r++)
-      SET_BIT(file_mask[sq], 8 * r + f);
-    adj_file_mask[sq] = shift(WEST, file_mask[sq]) | shift(EAST, file_mask[sq]);
-    passed_mask[WHITE][sq] = (file_mask[sq] | adj_file_mask[sq]) 
-                           &  (GET_BITBOARD(sq) - 1) & ~rank_mask[sq];
-    passed_mask[BLACK][sq] = (file_mask[sq] | adj_file_mask[sq]) 
-                           & ~(GET_BITBOARD(sq) - 1) & ~rank_mask[sq];
+    passed_mask[WHITE][sq] = (adj_file_mask[sq & 7] | file_mask[sq & 7])
+                           &  ((1ULL << sq) - 1) & ~rank_mask[sq >> 3];
+    passed_mask[BLACK][sq] = (adj_file_mask[sq & 7] | file_mask[sq & 7])
+                           & ~((1ULL << sq) - 1) & ~rank_mask[sq >> 3];
   }
 }
 
@@ -143,9 +144,9 @@ evaluate(const Position *pos)
     value += pawn_pcsqt[sq][endgame];
     if (!(passed_mask[WHITE][sq] & black_pawns))
       value += passed[sq >> 3][endgame];
-    if (file_mask[sq] & white_pawns & passed_mask[WHITE][sq])
+    if (file_mask[sq & 7] & white_pawns & passed_mask[WHITE][sq])
       value += doubled[endgame];
-    if (!(adj_file_mask[sq] & white_pawns))
+    if (!(adj_file_mask[sq & 7] & white_pawns))
       value += isolated[endgame];
   }
 
@@ -155,9 +156,9 @@ evaluate(const Position *pos)
     value -= pawn_pcsqt[fsq][endgame];
     if (!(passed_mask[BLACK][sq] & white_pawns))
       value -= passed[fsq >> 3][endgame];
-    if (file_mask[sq] & black_pawns & passed_mask[BLACK][sq])
+    if (file_mask[sq & 7] & black_pawns & passed_mask[BLACK][sq])
       value -= doubled[endgame];
-    if (!(adj_file_mask[sq] & white_pawns))
+    if (!(adj_file_mask[sq & 7] & white_pawns))
       value -= isolated[endgame];
   }
 
@@ -167,7 +168,7 @@ evaluate(const Position *pos)
     sq = pop_lsb(&mask);
     value += knight_pcsqt[sq][endgame];
     value += POPCOUNT(attacks_bb(KNIGHT, sq, occupancy) & ~pos->color[WHITE]);
-    if (!(adj_file_mask[sq] & passed_mask[WHITE][sq] & black_pawns))
+    if (!(adj_file_mask[sq & 7] & passed_mask[WHITE][sq] & black_pawns))
       value += outpost[endgame];
   }
 
@@ -175,7 +176,7 @@ evaluate(const Position *pos)
     sq = pop_lsb(&mask);
     value -= knight_pcsqt[FLIP(sq)][endgame];
     value -= POPCOUNT(attacks_bb(KNIGHT, sq, occupancy) & ~pos->color[BLACK]);
-    if (!(adj_file_mask[sq] & passed_mask[BLACK][sq] & white_pawns))
+    if (!(adj_file_mask[sq & 7] & passed_mask[BLACK][sq] & white_pawns))
       value -= outpost[endgame];
   }
 
@@ -189,7 +190,7 @@ evaluate(const Position *pos)
     sq = pop_lsb(&mask);
     value += bishop_pcsqt[sq][endgame];
     value += POPCOUNT(attacks_bb(BISHOP, sq, occupancy) & ~pos->color[WHITE]);
-    if (!(adj_file_mask[sq] & passed_mask[WHITE][sq] & black_pawns))
+    if (!(adj_file_mask[sq & 7] & passed_mask[WHITE][sq] & black_pawns))
       value += outpost[endgame];
   }
 
@@ -201,7 +202,7 @@ evaluate(const Position *pos)
     sq = pop_lsb(&mask);
     value -= bishop_pcsqt[FLIP(sq)][endgame];
     value -= POPCOUNT(attacks_bb(BISHOP, sq, occupancy) & ~pos->color[BLACK]);
-    if (!(adj_file_mask[sq] & passed_mask[BLACK][sq] & white_pawns))
+    if (!(adj_file_mask[sq & 7] & passed_mask[BLACK][sq] & white_pawns))
       value -= outpost[endgame];
   }
 
@@ -210,9 +211,9 @@ evaluate(const Position *pos)
   for (mask = pos->color[WHITE] & pos->piece[ROOK]; mask; ) {
     sq = pop_lsb(&mask);
     value += rook_pcsqt[sq];
-    if (!(file_mask[sq] & pos->piece[PAWN]))
+    if (!(file_mask[sq & 7] & pos->piece[PAWN]))
       value += open_file[1];
-    else if (!(file_mask[sq] & white_pawns))
+    else if (!(file_mask[sq & 7] & white_pawns))
       value += open_file[0];
     if ((sq & 7) == (pos->ksq[BLACK] & 7)
     || (sq >> 3) == (pos->ksq[BLACK] >> 3))
@@ -222,9 +223,9 @@ evaluate(const Position *pos)
   for (mask = pos->color[BLACK] & pos->piece[ROOK]; mask; ) {
     sq = pop_lsb(&mask);
     value -= rook_pcsqt[FLIP(sq)];
-    if (!(file_mask[sq] & pos->piece[PAWN]))
+    if (!(file_mask[sq & 7] & pos->piece[PAWN]))
       value -= open_file[1];
-    else if (!(file_mask[sq] & black_pawns))
+    else if (!(file_mask[sq & 7] & black_pawns))
       value -= open_file[0];
     if ((sq & 7) == (pos->ksq[WHITE] & 7)
     || (sq >> 3) == (pos->ksq[WHITE] >> 3))
