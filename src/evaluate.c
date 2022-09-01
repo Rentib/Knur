@@ -97,11 +97,11 @@ static int pawn_cnt[2]; /* side */
 static const int passed[8][2]   = {{0,0},{53,100},{31,45},{15,22},{8,14},{5,9},{2,5},{0,0}};
 static const int isolated[2] = { -10, -25 };
 static const int doubled[2] = { -15, -25 };
-static const int outpost[2] = { 15, 9 };
+static const int outpost[][2] = { {54,34}, {31,25} }; /* [Knight/Bishop][Phase] */
 static const int knight_adj[9] = { -10, -8, -6, -4, -2, 0, 2, 4, 8 };
 static const int bishop_pair[2] = { 20, 40 };
 static const int bishop_on_long_diagonal[2] = { 13, 9 };
-static const int open_file[2]   = { 10, 20 }; /* semiopen, open */
+static const int open_file[2]   = { 18, 30 }; /* semiopen, open */
 static const int king_file[2]   = { 10, 20 };
 static const int rook_adj[9] = { 13, 12, 10, 7, 3, 0, -3, -6, -9 };
 static const int king_shield[2] = { 2, 7 };
@@ -182,8 +182,9 @@ eval_knights(const Color side, const Position *pos)
     value += POPCOUNT(attacks_bb(KNIGHT, sq, 0) & ~allies);
 
     /* outpost */
-    if (!(adj_file_mask[SQFILE(sq)] & passed_mask[sq] & enemy_pawns))
-      value += outpost[phase];
+    if (SQ_A6 <= sq && sq <= SQ_H4 && (allied_pawns & pawn_attacks_bb(!side, sq))
+    && !(adj_file_mask[SQFILE(sq)] & passed_mask[sq] & enemy_pawns))
+      value += outpost[0][phase];
 
     /* adjust value depending on number of pawns */
     value += knight_adj[pawn_cnt[side]];
@@ -200,6 +201,7 @@ eval_bishops(const Color side, const Position *pos)
   U64 allies = pos->color[side];
   U64 enemies = pos->color[!side];
   U64 bishops = allies & pos->piece[BISHOP];
+  U64 allied_pawns = allies & pos->piece[PAWN];
   U64 enemy_pawns = enemies & pos->piece[PAWN];
 
   if (!bishops)
@@ -209,6 +211,7 @@ eval_bishops(const Color side, const Position *pos)
     FLIP(allies);
     FLIP(enemies);
     FLIP(bishops);
+    FLIP(allied_pawns);
     FLIP(enemy_pawns);
   }
 
@@ -222,6 +225,11 @@ eval_bishops(const Color side, const Position *pos)
 
     /* mobility */
     value += POPCOUNT(attacks_bb(BISHOP, sq, allies | enemies) & ~allies);
+
+    /* outpost */
+    if (SQ_A6 <= sq && sq <= SQ_H4 && (allied_pawns & pawn_attacks_bb(!side, sq))
+    && !(adj_file_mask[SQFILE(sq)] & passed_mask[sq] & enemy_pawns))
+      value += outpost[1][phase];
 
     /* long diagonal */
     if (GET_BIT(long_diagonal_mask, sq))
