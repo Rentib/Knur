@@ -100,6 +100,7 @@ static const int doubled[2] = { -15, -25 };
 static const int outpost[2] = { 15, 9 };
 static const int knight_adj[9] = { -10, -8, -6, -4, -2, 0, 2, 4, 8 };
 static const int bishop_pair[2] = { 20, 40 };
+static const int bishop_on_long_diagonal[2] = { 13, 9 };
 static const int open_file[2]   = { 10, 20 }; /* semiopen, open */
 static const int king_file[2]   = { 10, 20 };
 static const int rook_adj[9] = { 13, 12, 10, 7, 3, 0, -3, -6, -9 };
@@ -110,6 +111,7 @@ U64 rank_mask[8];
 U64 file_mask[8];
 U64 adj_file_mask[8];
 U64 passed_mask[64];
+U64 long_diagonal_mask;
 
 static int
 eval_pawns(const Color side, const Position *pos)
@@ -221,9 +223,9 @@ eval_bishops(const Color side, const Position *pos)
     /* mobility */
     value += POPCOUNT(attacks_bb(BISHOP, sq, allies | enemies) & ~allies);
 
-    /* outpost */
-    if (!(adj_file_mask[SQFILE(sq)] & passed_mask[sq] & enemy_pawns))
-      value += outpost[phase];
+    /* long diagonal */
+    if (GET_BIT(long_diagonal_mask, sq))
+      value += bishop_on_long_diagonal[phase];
   }
 
   return value;
@@ -284,6 +286,8 @@ evaluation_init(void)
   for (sq = SQ_A8; sq <= SQ_H1; sq++)
     passed_mask[sq] = (adj_file_mask[SQFILE(sq)] | file_mask[SQFILE(sq)])
                     & (GET_BITBOARD(sq) - 1) & ~rank_mask[SQRANK(sq)];
+
+  long_diagonal_mask = attacks_bb(BISHOP, SQ_A1, 0) | attacks_bb(BISHOP, SQ_H1, 0);
 }
 
 int
