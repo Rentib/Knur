@@ -37,6 +37,9 @@
 
 #define FLIP(square)        ((square) ^ 56)
 
+typedef enum { MID_GAME, END_GAME } GamePhase;
+static GamePhase phase;
+
 /* Piece Square Tables */
 static const int pawn_pcsqt[64][2] = {
   { 0,0}, { 0,0}, { 0,0}, { 0,0}, { 0,0}, { 0,0}, { 0,0}, { 0,0},
@@ -97,14 +100,20 @@ static U64 file_mask[8];       /* [File] */
 static U64 adj_file_mask[8];   /* [File] */
 static U64 passed_mask[2][64]; /* [Color][Square] */
 
-static const int king_shield[2] = { 2, 7 };
-static const int outpost[2]     = { 15, 9 };
+static const int passed[8][2]   = {{0,0},{53,100},{31,45},{15,22},{8,14},{5,9},{2,5},{0,0}};
+static const int isolated[2] = { -10, -25 };
+static const int doubled[2] = { -15, -25 };
+
+static const int outpost[2] = { 15, 9 };
+static const int knight_adj[9] = { -10, -8, -6, -4, -2, 0, 2, 4, 8 };
+
 static const int bishop_pair[2] = { 20, 40 };
+
 static const int open_file[2]   = { 10, 20 }; /* semiopen, open */
 static const int king_file[2]   = { 10, 20 };
-static const int passed[8][2]   = {{0,0},{53,100},{31,45},{15,22},{8,14},{5,9},{2,5},{0,0}};
-static const int isolated[2]    = { -10, -25 };
-static const int doubled[2]     = { -15, -25 };
+static const int rook_adj[9] = { 13, 12, 10, 7, 3, 0, -3, -6, -9 };
+
+static const int king_shield[2] = { 2, 7 };
 
 void
 evaluation_init(void)
@@ -130,80 +139,86 @@ int
 evaluate(const Position *pos)
 {
   int value       = pos->material[WHITE] - pos->material[BLACK];
-  int endgame     = pos->material[WHITE] + pos->material[BLACK] <= 3000;
   U64 white_pawns = pos->color[WHITE] & pos->piece[PAWN];
   U64 black_pawns = pos->color[BLACK] & pos->piece[PAWN];
   U64 occupancy   = ~pos->empty;
   U64 mask;
   Square sq, fsq;
+  int wpanws_cnt = POPCOUNT(white_pawns);
+  int bpanws_cnt = POPCOUNT(black_pawns);
+
+  /* Game Phase */
+  phase = pos->material[WHITE] + pos->material[BLACK] > 3000 ? MID_GAME : END_GAME;
 
   /* Pawns */
 
   for (mask = white_pawns; mask; ) {
     sq = pop_lsb(&mask);
-    value += pawn_pcsqt[sq][endgame];
+    value += pawn_pcsqt[sq][phase];
     if (!(passed_mask[WHITE][sq] & black_pawns))
-      value += passed[sq >> 3][endgame];
+      value += passed[sq >> 3][phase];
     if (file_mask[sq & 7] & white_pawns & passed_mask[WHITE][sq])
-      value += doubled[endgame];
+      value += doubled[phase];
     if (!(adj_file_mask[sq & 7] & white_pawns))
-      value += isolated[endgame];
+      value += isolated[phase];
   }
 
   for (mask = black_pawns; mask; ) {
     sq = pop_lsb(&mask);
     fsq = FLIP(sq);
-    value -= pawn_pcsqt[fsq][endgame];
+    value -= pawn_pcsqt[fsq][phase];
     if (!(passed_mask[BLACK][sq] & white_pawns))
-      value -= passed[fsq >> 3][endgame];
+      value -= passed[fsq >> 3][phase];
     if (file_mask[sq & 7] & black_pawns & passed_mask[BLACK][sq])
-      value -= doubled[endgame];
+      value -= doubled[phase];
     if (!(adj_file_mask[sq & 7] & white_pawns))
-      value -= isolated[endgame];
+      value -= isolated[phase];
   }
 
   /* Knights */
 
   for (mask = pos->color[WHITE] & pos->piece[KNIGHT]; mask; ) {
     sq = pop_lsb(&mask);
-    value += knight_pcsqt[sq][endgame];
+    value += knight_pcsqt[sq][phase];
     value += POPCOUNT(attacks_bb(KNIGHT, sq, occupancy) & ~pos->color[WHITE]);
     if (!(adj_file_mask[sq & 7] & passed_mask[WHITE][sq] & black_pawns))
-      value += outpost[endgame];
+      value += outpost[phase];
+    value += knight_adj[wpanws_cnt];
   }
 
   for (mask = pos->color[BLACK] & pos->piece[KNIGHT]; mask; ) {
     sq = pop_lsb(&mask);
-    value -= knight_pcsqt[FLIP(sq)][endgame];
+    value -= knight_pcsqt[FLIP(sq)][phase];
     value -= POPCOUNT(attacks_bb(KNIGHT, sq, occupancy) & ~pos->color[BLACK]);
     if (!(adj_file_mask[sq & 7] & passed_mask[BLACK][sq] & white_pawns))
-      value -= outpost[endgame];
+      value -= outpost[phase];
+    value -= knight_adj[bpanws_cnt];
   }
 
   /* Bishops */
 
   mask = pos->color[WHITE] & pos->piece[BISHOP];
   if (mask & (mask - 1))
-    value += bishop_pair[endgame];
+    value += bishop_pair[phase];
 
   for (; mask; ) {
     sq = pop_lsb(&mask);
-    value += bishop_pcsqt[sq][endgame];
+    value += bishop_pcsqt[sq][phase];
     value += POPCOUNT(attacks_bb(BISHOP, sq, occupancy) & ~pos->color[WHITE]);
     if (!(adj_file_mask[sq & 7] & passed_mask[WHITE][sq] & black_pawns))
-      value += outpost[endgame];
+      value += outpost[phase];
   }
 
   mask = pos->color[BLACK] & pos->piece[BISHOP];
   if (mask & (mask - 1))
-    value -= bishop_pair[endgame];
+    value -= bishop_pair[phase];
 
   for (; mask; ) {
     sq = pop_lsb(&mask);
-    value -= bishop_pcsqt[FLIP(sq)][endgame];
+    value -= bishop_pcsqt[FLIP(sq)][phase];
     value -= POPCOUNT(attacks_bb(BISHOP, sq, occupancy) & ~pos->color[BLACK]);
     if (!(adj_file_mask[sq & 7] & passed_mask[BLACK][sq] & white_pawns))
-      value -= outpost[endgame];
+      value -= outpost[phase];
   }
 
   /* Rooks */
@@ -217,7 +232,8 @@ evaluate(const Position *pos)
       value += open_file[0];
     if ((sq & 7) == (pos->ksq[BLACK] & 7)
     || (sq >> 3) == (pos->ksq[BLACK] >> 3))
-      value += king_file[endgame];
+      value += king_file[phase];
+    value += rook_adj[wpanws_cnt];
   }
 
   for (mask = pos->color[BLACK] & pos->piece[ROOK]; mask; ) {
@@ -229,16 +245,17 @@ evaluate(const Position *pos)
       value -= open_file[0];
     if ((sq & 7) == (pos->ksq[WHITE] & 7)
     || (sq >> 3) == (pos->ksq[WHITE] >> 3))
-      value -= king_file[endgame];
+      value -= king_file[phase];
+    value -= rook_adj[bpanws_cnt];
   }
 
   /* Queens */
 
   /* Kings */
 
-  value += king_pcsqt[pos->ksq[WHITE]][endgame] - king_pcsqt[FLIP(pos->ksq[BLACK])][endgame];
-  value += king_shield[endgame] * 
-           (POPCOUNT(attacks_bb(KING, pos->ksq[WHITE], 0) & white_pawns) - 
+  value += king_pcsqt[pos->ksq[WHITE]][phase] - king_pcsqt[FLIP(pos->ksq[BLACK])][phase];
+  value += king_shield[phase] *
+           (POPCOUNT(attacks_bb(KING, pos->ksq[WHITE], 0) & white_pawns) -
             POPCOUNT(attacks_bb(KING, pos->ksq[BLACK], 0) & black_pawns));
 
   return pos->turn == WHITE ? value : -value;
