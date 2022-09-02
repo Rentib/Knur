@@ -36,17 +36,6 @@ static int eval_bishops(const Color side, const Position *pos);
 static int eval_rooks(const Color side, const Position *pos);
 
 /* Piece Square Tables */
-static const int pawn_pcsqt[64][2] = {
-  { 0,0}, { 0,0}, { 0,0}, { 0,0}, { 0,0}, { 0,0}, { 0,0}, { 0,0},
-  { 3,7}, { 0,5}, { 0,5}, { 0,5}, { 0,5}, { 0,5}, { 0,5}, { 3,7},
-  { 2,6}, { 0,4}, { 0,4}, { 0,4}, { 0,4}, { 0,4}, { 0,4}, { 2,6},
-  { 1,5}, { 0,3}, { 0,3}, { 0,3}, { 0,3}, { 0,3}, { 0,3}, { 1,5},
-  { 1,4}, { 0,2}, { 5,2}, {20,2}, {20,2}, { 5,2}, { 0,2}, { 1,4},
-  { 5,3}, {10,1}, { 0,1}, {10,1}, {10,1}, {-5,1}, {10,1}, { 5,3},
-  {10,2}, {10,0}, { 9,0}, { 5,0}, { 5,0}, {10,0}, {10,0}, {10,2},
-  { 0,0}, { 0,0}, { 0,0}, { 0,0}, { 0,0}, { 0,0}, { 0,0}, { 0,0},
-};
-
 static const int knight_pcsqt[64][2] = {
   {-15,-25}, { 0,0}, { 0,0}, { 0,0}, { 0,0}, { 0,0}, { 0,0}, {-15,-25},
   {-10,-20}, { 0,0}, { 0,0}, { 0,0}, { 0,0}, { 0,0}, { 0,0}, {-10,-20},
@@ -91,12 +80,17 @@ static const int king_pcsqt[64][2] = {
 };
 
 static GamePhase phase;
-static int pawn_cnt[2]; /* side */
+static int pawn_cnt[2]; /* [Color] */
 
 /* bonuses in centipawns */
-static const int passed[8][2]   = {{0,0},{53,100},{31,45},{15,22},{8,14},{5,9},{2,5},{0,0}};
-static const int isolated[2] = { -10, -25 };
-static const int doubled[2] = { -15, -25 };
+static const int backward_pawn[2] = { -6, -19 };
+static const int blocked_pawn[2][2] = { {-19,-8}, {-7,3} }; /* rank 6/7 pawns */
+static const int connected_pawn[8] = { 0, 86, 54, 15, 7, 7, 3, 0 };
+static const int doubled_pawn[2] = { -11, -51 };
+static const int isolated_pawn[2] = { -1, -20 };
+static const int passed_pawn[8][2] = {{0,0},{113,94},{51,65},{22,30},{8,15},{5,8},{2,5},{0,0}};
+static const int center_pawn[2] = { 15, 0 };
+
 static const int outpost[][2] = { {54,34}, {31,25} }; /* [Knight/Bishop][Phase] */
 static const int knight_adj[9] = { -10, -8, -6, -4, -2, 0, 2, 4, 8 };
 static const int bishop_pair[2] = { 20, 40 };
@@ -111,6 +105,7 @@ U64 rank_mask[8];
 U64 file_mask[8];
 U64 adj_file_mask[8];
 U64 passed_mask[64];
+U64 center_pawn_mask;
 U64 long_diagonal_mask;
 
 static int
@@ -119,6 +114,7 @@ eval_pawns(const Color side, const Position *pos)
   int value = 0;
   Square sq;
   U64 mask;
+  U64 blocked, lever, lever_push, neighbours, phalanx, stoppers, support;
   U64 allied_pawns = pos->color[side] & pos->piece[PAWN];
   U64 enemy_pawns = pos->color[!side] & pos->piece[PAWN];
 
@@ -132,21 +128,44 @@ eval_pawns(const Color side, const Position *pos)
     FLIP(enemy_pawns);
   }
 
+  value += POPCOUNT(center_pawn_mask & allied_pawns) * center_pawn[phase];
+
   for (mask = allied_pawns; mask; ) {
     sq = pop_lsb(&mask);
-    value += pawn_pcsqt[sq][phase];
+    /* value += pawn_pcsqt[sq][phase]; */
 
-    /* passed */
-    if (!(passed_mask[sq] & enemy_pawns))
-      value += passed[SQRANK(sq)][phase];
+    blocked    = enemy_pawns  & GET_BITBOARD(sq + NORTH);
+    lever      = enemy_pawns  & pawn_attacks_bb(side, sq);
+    lever_push = enemy_pawns  & pawn_attacks_bb(side, sq + NORTH);
+    neighbours = allied_pawns & adj_file_mask[SQFILE(sq)];
+    phalanx    = neighbours   & rank_mask[SQRANK(sq)];
+    stoppers   = enemy_pawns  & passed_mask[sq];
+    support    = neighbours   & rank_mask[SQRANK(sq + SOUTH)];
+
+    /* backward */
+    if (!(neighbours & (~Rank8BB << 8 * SQRANK(sq)) && (blocked | lever_push)))
+      value += backward_pawn[phase];
+
+    /* blocked */
+    if (blocked && sq <= SQ_H5)
+      value += blocked_pawn[SQRANK(sq) - 2][phase];
 
     /* doubled */
-    if (file_mask[SQFILE(sq)] & passed_mask[sq] & allied_pawns)
-      value += doubled[phase];
+    if (allied_pawns & GET_BITBOARD(sq + SOUTH))
+      value += doubled_pawn[phase];
+
+    /* connected */
+    if (phalanx | support)
+      value += connected_pawn[SQRANK(sq)];
 
     /* isolated */
-    if (!(adj_file_mask[SQFILE(sq)] & allied_pawns))
-      value += isolated[phase];
+    else if (!neighbours)
+      value += isolated_pawn[phase];
+
+    /* passed */
+    if (!(lever ^ stoppers)
+    || (!(stoppers ^ lever_push) && POPCOUNT(phalanx) >= POPCOUNT(lever_push)))
+      value += passed_pawn[SQRANK(sq)][phase];
   }
 
   return value;
@@ -295,6 +314,7 @@ evaluation_init(void)
     passed_mask[sq] = (adj_file_mask[SQFILE(sq)] | file_mask[SQFILE(sq)])
                     & (GET_BITBOARD(sq) - 1) & ~rank_mask[SQRANK(sq)];
 
+  center_pawn_mask = pawn_attacks_bb(BLACK, SQ_D5) | pawn_attacks_bb(BLACK, SQ_E5);
   long_diagonal_mask = attacks_bb(BISHOP, SQ_A1, 0) | attacks_bb(BISHOP, SQ_H1, 0);
 }
 
