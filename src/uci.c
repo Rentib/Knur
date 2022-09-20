@@ -44,7 +44,7 @@ typedef struct Parser Parser;
  * If it is then a function is executed.
  */
 struct Parser {
-  const char *cmd;                              /**< Command; */
+  const char *cmd;                        /**< Command; */
   void (*func)(Position *, const char *); /**< Function. */
 };
 
