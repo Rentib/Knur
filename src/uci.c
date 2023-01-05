@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
+#include <threads.h>
 
 #include "knur.h"
 #include "movegen.h"
@@ -50,7 +50,7 @@ struct Parser {
 
 static void display(Position *, const char *);
 static void go(Position *, const char *);
-static void *go_helper(void *);
+static int  go_helper(void *);
 static void isready(Position *, const char *);
 static Move parse_move(Position *pos, char *move_string);
 static void position(Position *, const char *);
@@ -60,7 +60,7 @@ static void stop(Position *, const char *);
 static void uci(Position *, const char *);
 static void ucinewgame(Position *, const char *);
 
-static pthread_t thread;
+static thrd_t thread;
 
 static Parser parser[] = {
   { "d", display },
@@ -140,15 +140,14 @@ go(Position *pos, const char *input)
 
   info.depth = depth;
 
-  pthread_create(&thread, NULL, go_helper, pos);
-  pthread_detach(thread);
+  thrd_create(&thread, go_helper, pos);
 }
 
-static void
-*go_helper(void *pos)
+static int
+go_helper(void *pos)
 {
   search((Position *)pos);
-  pthread_exit(NULL);
+  thrd_exit(0);
 }
 
 static void
@@ -242,7 +241,10 @@ static void
 stop(Position *pos, const char *input)
 {
   (void)pos, (void)input;
-  info.stop = 1;
+  if (!info.stop) {
+    info.stop = 1;
+    thrd_join(thread, NULL);
+  }
 }
 
 static void
