@@ -1,0 +1,5 @@
+*.o
+knur
+
+.cache
+compile_commands.json
