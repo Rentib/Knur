@@ -5,7 +5,7 @@ CFLAGS  = -std=c2x -Wall -Wextra -Werror -pedantic -pthread \
 LDFLAGS = -pthread
 CC      = clang
 
-REQ =
+REQ = util
 
 all: CFLAGS += -O3 -ffast-math
 all: CFLAGS += -march=native -m64 -mpopcnt
