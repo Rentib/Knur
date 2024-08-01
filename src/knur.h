@@ -1,6 +1,8 @@
 #ifndef KNUR_H_
 #define KNUR_H_
 
+#include <stdint.h>
+
 enum color { WHITE, BLACK, COLOR_NB };
 
 enum piece_type { PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING, PIECE_TYPE_NB };
@@ -56,9 +58,11 @@ enum direction {
 	SOUTH_SOUTH = SOUTH + SOUTH,
 };
 
-#define ABS(X)        ((X) < 0 ? -(X) : (X))
-#define MAX(A, B)     ((A) > (B) ? (A) : (B))
-#define MIN(A, B)     ((A) < (B) ? (A) : (B))
+typedef uint64_t u64;
+
+#define ABS(X)    ((X) < 0 ? -(X) : (X))
+#define MAX(A, B) ((A) > (B) ? (A) : (B))
+#define MIN(A, B) ((A) < (B) ? (A) : (B))
 
 #define MAX_MOVES      (1024)
 #define MAX_PLY        (64)

@@ -1,11 +1,7 @@
 #ifndef KNUR_BITBOARDS_H_
 #define KNUR_BITBOARDS_H_
 
-#include <stdint.h>
-
 #include "knur.h"
-
-typedef uint64_t u64;
 
 #define BB_TEST(bitboard, square)  (((bitboard) >> (square)) & 1)
 #define BB_SET(bitboard, square)   ((bitboard) |= (1ULL << (square)))
