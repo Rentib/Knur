@@ -60,6 +60,50 @@ enum direction {
 
 typedef uint64_t u64;
 
+/* move enum
+ * 16 bits to encode
+ * 00|00|000000|000000
+ * pt|mt| from |  to
+ * pt   - promotion piece type
+ * mt   - move type
+ * from - origin square
+ * to   - destination square
+ */
+enum move : uint16_t {
+	MOVE_NONE = 0,  /* move from SQ_A8 to SQ_A8 */
+	MOVE_NULL = 65, /* move from SQ_B8 to SQ_B8 */
+};
+
+enum move_type {
+	MT_NORMAL = 0 << 12,
+	MT_CASTLE = 1 << 12,
+	MT_ENPASSANT = 2 << 12,
+	MT_PROMOTION = 3 << 12,
+};
+
+#define MOVE_TO(move)         ((enum square)(((move) >> 0) & 0x3F))
+#define MOVE_FROM(move)       ((enum square)(((move) >> 6) & 0x3F))
+#define MOVE_TYPE(move)       ((enum move_type)((move) & (3 << 12)))
+#define MOVE_PROMOTION(move)  ((enum piece_type)((((move) >> 14) & 3) + KNIGHT))
+#define MAKE_MOVE(from, to)   ((enum move)(((from) << 6) + (to)))
+#define MAKE_CASTLE(from, to) ((enum move)(MT_CASTLE + MAKE_MOVE(from, to)))
+#define MAKE_ENPASSANT(from, to)                                               \
+	((enum move)(MT_ENPASSANT + MAKE_MOVE(from, to)))
+#define MAKE_PROMOTION(from, to, pt)                                           \
+	((enum move)((((pt) - KNIGHT) << 14) + MT_PROMOTION +                  \
+		     MAKE_MOVE(from, to)))
+#define MOVE_STR(move)                                                         \
+	((move) == MOVE_NONE ? "none"                                          \
+	 : (move) == MOVE_NULL                                                 \
+	     ? "null"                                                          \
+	     : (char[]){SQ_STR(MOVE_FROM(move))[0],                            \
+			SQ_STR(MOVE_FROM(move))[1], SQ_STR(MOVE_TO(move))[0],  \
+			SQ_STR(MOVE_TO(move))[1],                              \
+			MOVE_TYPE(move) == MT_PROMOTION                        \
+			    ? "nbrq"[MOVE_PROMOTION(move) - KNIGHT]            \
+			    : '\0',                                            \
+			'\0'})
+
 #define ABS(X)    ((X) < 0 ? -(X) : (X))
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
 #define MIN(A, B) ((A) < (B) ? (A) : (B))
