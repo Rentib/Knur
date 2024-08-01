@@ -17,4 +17,4 @@ uint64_t rand_sparse_u64(void);
 uint64_t rand_u64(void);
 uint64_t gettime(void);
 
-#endif // KNUR_UTIL_H_
+#endif /* KNUR_UTIL_H_ */

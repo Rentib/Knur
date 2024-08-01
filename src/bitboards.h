@@ -81,4 +81,4 @@ INLINE enum square bb_popmsb(u64 *bitboard)
 	return square;
 }
 
-#endif // KNUR_BITBOARDS_H_
+#endif /* KNUR_BITBOARDS_H_ */

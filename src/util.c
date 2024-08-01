@@ -35,7 +35,7 @@ void *ecalloc(size_t nmemb, size_t size)
 
 uint64_t rand_sparse_u64(void) { return rand_u64() & rand_u64() & rand_u64(); }
 
-// xorshiro
+/* xorshiro */
 uint64_t rand_u64(void)
 {
 	static struct {
