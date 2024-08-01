@@ -8,13 +8,13 @@ struct position_state {
 	int castle;          /* castling rights */
 	int fifty_rule;      /* fifty move rule */
 	enum piece captured; /* captured piece */
+	u64 checkers;        /* bitboard of pieces giving a check */
 
 	struct position_state *prev; /* pointer to previous position state */
 };
 
 struct position {
 	enum color stm;           /* side to move */
-	u64 empty;                /* bitboard for empty squares */
 	u64 color[COLOR_NB];      /* [color] bitboards for colors */
 	u64 piece[PIECE_TYPE_NB]; /* [piece type] bitboards for piece types */
 	enum piece board[SQUARE_NB]; /* [square] piece on each square */

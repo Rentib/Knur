@@ -59,7 +59,6 @@ void pos_set_fen(struct position *pos, const char *fen)
 	fen = fen == nullptr ? START_FEN : fen;
 
 	pos->stm = WHITE;
-	pos->empty = 0;
 	ARRAY_FILL(pos->color, 0);
 	ARRAY_FILL(pos->piece, 0);
 	ARRAY_FILL(pos->board, NO_PIECE);
@@ -69,6 +68,7 @@ void pos_set_fen(struct position *pos, const char *fen)
 	pos->st->castle = 0;
 	pos->st->fifty_rule = 0;
 	pos->st->captured = NO_PIECE;
+	pos->st->checkers = 0;
 	pos->st->prev = nullptr;
 
 	str = strdup(fen);
@@ -95,7 +95,6 @@ void pos_set_fen(struct position *pos, const char *fen)
 		}
 		sq++;
 	}
-	pos->empty = ~(pos->color[WHITE] | pos->color[BLACK]);
 
 	/* side to move */
 	token = strtok_r(nullptr, " ", &saveptr);
@@ -128,6 +127,12 @@ void pos_set_fen(struct position *pos, const char *fen)
 
 	/* full move counter */
 	pos->game_ply = atoi(strtok_r(nullptr, " ", &saveptr));
+
+	/* additional information */
+	pos->st->checkers =
+	    pos_attackers(
+		pos, BB_TO_SQUARE(pos->piece[KING] & pos->color[pos->stm])) &
+	    pos->color[!pos->stm];
 
 	free(str);
 }
