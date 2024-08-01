@@ -231,11 +231,11 @@ void pos_do_move(struct position *pos, enum move m)
 		}
 	} else if (PIECE_TYPE(pc) == KING) {
 		if (MOVE_TYPE(m) == MT_CASTLE) {
-			if (to < from) { // queenside (long)
+			if (to < from) { /* queenside (long) */
 				del_piece(pos, PIECE_MAKE(ROOK, us),
 					  to + 2 * WEST);
 				add_piece(pos, PIECE_MAKE(ROOK, us), to + EAST);
-			} else { // kingside (short)
+			} else { /* kingside (short) */
 				del_piece(pos, PIECE_MAKE(ROOK, us), to + EAST);
 				add_piece(pos, PIECE_MAKE(ROOK, us), to + WEST);
 			}
@@ -275,11 +275,11 @@ void pos_undo_move(struct position *pos, enum move m)
 		}
 	} else if (PIECE_TYPE(pc) == KING) {
 		if (MOVE_TYPE(m) == MT_CASTLE) {
-			if (to < from) { // queenside (long)
+			if (to < from) { /* queenside (long) */
 				del_piece(pos, PIECE_MAKE(ROOK, us), to + EAST);
 				add_piece(pos, PIECE_MAKE(ROOK, us),
 					  to + 2 * WEST);
-			} else { // kingside (short)
+			} else { /* kingside (short) */
 				del_piece(pos, PIECE_MAKE(ROOK, us), to + WEST);
 				add_piece(pos, PIECE_MAKE(ROOK, us), to + EAST);
 			}

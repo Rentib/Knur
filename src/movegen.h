@@ -13,4 +13,4 @@ enum mg_type {
 enum move *mg_generate(enum mg_type mt, enum move *move_list,
 		       const struct position *position);
 
-#endif // KNUR_MOVEGEN_H_
+#endif /* KNUR_MOVEGEN_H_ */

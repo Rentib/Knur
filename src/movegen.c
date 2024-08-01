@@ -27,12 +27,12 @@ enum move *castle_moves(enum move *move_list, const struct position *pos)
 	const enum color us = pos->stm, them = !us;
 	const enum square ksq = BB_TO_SQUARE(pos->piece[KING] & pos->color[us]);
 	const u64 occ = pos->piece[ALL_PIECES];
-	// queenside
+	/* queenside */
 	if ((pos->st->castle & (1 << us)) &&
 	    !(occ & bb_between(ksq - 3, ksq - 1)) &&
 	    !(pos->color[them] & pos_attackers(pos, ksq + WEST)))
 		*move_list++ = MAKE_CASTLE(ksq, ksq - 2);
-	// kingside
+	/* kingside */
 	if ((pos->st->castle & (4 << us)) &&
 	    !(occ & bb_between(ksq + 1, ksq + 2)) &&
 	    !(pos->color[them] & pos_attackers(pos, ksq + EAST)))
@@ -55,7 +55,7 @@ enum move *pawn_moves(enum mg_type mt, enum move *move_list,
 	u64 b1, b2;
 	enum square to;
 
-	// quiet moves
+	/* quiet moves */
 	if (mt != MGT_CAPTURES) {
 		b1 = bb_shift(pawns, up) & ~pos->piece[ALL_PIECES];
 		b2 = bb_shift(b1, up) & empty & rank4;
@@ -71,7 +71,7 @@ enum move *pawn_moves(enum mg_type mt, enum move *move_list,
 		}
 	}
 
-	// captures
+	/* captures */
 	if (mt != MGT_QUIET) {
 		b1 = bb_shift(pawns, upe) & enemies;
 		b2 = bb_shift(pawns, upw) & enemies;
@@ -93,7 +93,7 @@ enum move *pawn_moves(enum mg_type mt, enum move *move_list,
 		}
 	}
 
-	// promotions
+	/* promotions */
 	if (mt != MGT_CAPTURES) {
 		b1 = bb_shift(promo, up) & empty;
 		while (b1)
