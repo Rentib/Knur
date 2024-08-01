@@ -13,12 +13,7 @@
 INLINE void add_enpas(struct position *position, enum square square);
 INLINE void add_piece(struct position *position, enum piece piece,
 		      enum square square);
-/*INLINE void del_enpas(struct position *position);*/
-/*INLINE void del_piece(struct position *position, enum piece piece,*/
-/*		      enum square square);*/
 INLINE void flip_stm(struct position *position);
-/*INLINE void update_castle(struct position *position, enum square from,*/
-/*			  enum square to);*/
 
 void add_enpas(struct position *pos, enum square sq) { pos->st->enpas = sq; }
 
@@ -26,35 +21,11 @@ void add_piece(struct position *pos, enum piece pc, enum square sq)
 {
 	BB_SET(pos->color[PIECE_COLOR(pc)], sq);
 	BB_SET(pos->piece[PIECE_TYPE(pc)], sq);
+	BB_SET(pos->piece[ALL_PIECES], sq);
 	pos->board[sq] = pc;
 }
 
-/*void del_enpas(struct position *pos)*/
-/*{*/
-/*	if (pos->st->enpas != SQ_NONE) {*/
-/*		pos->st->enpas = SQ_NONE;*/
-/*	}*/
-/*}*/
-
-/*void del_piece(struct position *pos, enum piece pc, enum square sq)*/
-/*{*/
-/*	BB_RESET(pos->color[PIECE_COLOR(pc)], sq);*/
-/*	BB_RESET(pos->piece[PIECE_TYPE(pc)], sq);*/
-/*	pos->board[sq] = EMPTY;*/
-/*}*/
-
 void flip_stm(struct position *pos) { pos->stm ^= 1; }
-
-/*void update_castle(struct position *pos, enum square from, enum square to)*/
-/*{*/
-/*	static const int castling_table[64] = {*/
-/*	    13, 15, 15, 15, 5,  15, 15, 7,  15, 15, 15, 15, 15, 15, 15, 15,*/
-/*	    15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,*/
-/*	    15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,*/
-/*	    15, 15, 15, 15, 15, 15, 15, 15, 14, 15, 15, 15, 10, 15, 15, 11,*/
-/*	};*/
-/*	pos->st->castle &= castling_table[from] & castling_table[to];*/
-/*}*/
 
 void pos_init(struct position *pos)
 {
@@ -91,13 +62,13 @@ void pos_set_fen(struct position *pos, const char *fen)
 	pos->empty = 0;
 	ARRAY_FILL(pos->color, 0);
 	ARRAY_FILL(pos->piece, 0);
-	ARRAY_FILL(pos->board, EMPTY);
+	ARRAY_FILL(pos->board, NO_PIECE);
 	pos->game_ply = 0;
 
 	pos->st->enpas = SQ_NONE;
 	pos->st->castle = 0;
 	pos->st->fifty_rule = 0;
-	pos->st->captured = EMPTY;
+	pos->st->captured = NO_PIECE;
 	pos->st->prev = nullptr;
 
 	str = strdup(fen);
@@ -172,7 +143,7 @@ void pos_print(const struct position *pos)
 		printf("%d |", rank);
 		for (file = 0; file < 8; file++, sq++) {
 			c = BB_TEST(pos->color[BLACK], sq) ? 32 : 0;
-			c |= pos->board[sq] == EMPTY
+			c |= pos->board[sq] == NO_PIECE
 				 ? ' '
 				 : ptc[PIECE_TYPE(pos->board[sq])];
 			printf(" %c |", c);

@@ -5,7 +5,10 @@
 
 enum color { WHITE, BLACK, COLOR_NB };
 
-enum piece_type { PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING, PIECE_TYPE_NB };
+enum piece_type {
+	PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING, ALL_PIECES,
+	PIECE_TYPE_NB
+};
 
 /* clang-format off */
 enum piece {
@@ -15,7 +18,7 @@ enum piece {
 	WHITE_ROOK   = 12, BLACK_ROOK   = 13,
 	WHITE_QUEEN  = 16, BLACK_QUEEN  = 17,
 	WHITE_KING   = 20, BLACK_KING   = 21,
-	EMPTY        = 26,
+	NO_PIECE     = 26,
 };
 /* clang-format on */
 
