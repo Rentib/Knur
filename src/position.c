@@ -13,7 +13,12 @@
 INLINE void add_enpas(struct position *position, enum square square);
 INLINE void add_piece(struct position *position, enum piece piece,
 		      enum square square);
+INLINE void del_enpas(struct position *position);
+INLINE void del_piece(struct position *position, enum piece piece,
+		      enum square square);
 INLINE void flip_stm(struct position *position);
+INLINE void update_castle(struct position *pos, enum square from,
+			  enum square to);
 
 void add_enpas(struct position *pos, enum square sq) { pos->st->enpas = sq; }
 
@@ -25,7 +30,34 @@ void add_piece(struct position *pos, enum piece pc, enum square sq)
 	pos->board[sq] = pc;
 }
 
+void del_enpas(struct position *pos)
+{
+	if (pos->st->enpas != SQ_NONE) {
+		pos->st->enpas = SQ_NONE;
+	}
+}
+
+void del_piece(struct position *pos, enum piece pc, enum square sq)
+{
+	BB_XOR(pos->color[PIECE_COLOR(pc)], sq);
+	BB_XOR(pos->piece[PIECE_TYPE(pc)], sq);
+	BB_XOR(pos->piece[ALL_PIECES], sq);
+	pos->board[sq] = NO_PIECE;
+}
+
 void flip_stm(struct position *pos) { pos->stm ^= 1; }
+
+void update_castle(struct position *pos, enum square from, enum square to)
+{
+	static const int castling_table[64] = {
+	    13, 15, 15, 15, 5,  15, 15, 7,  15, 15, 15, 15, 15, 15, 15, 15,
+	    15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
+	    15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
+	    15, 15, 15, 15, 15, 15, 15, 15, 14, 15, 15, 15, 10, 15, 15, 11,
+	};
+
+	pos->st->castle &= castling_table[from] & castling_table[to];
+}
 
 void pos_init(struct position *pos)
 {
@@ -164,6 +196,107 @@ void pos_print(const struct position *pos)
 	       pos->st->castle & 2 ? 'q' : '-');
 }
 
+void pos_do_move(struct position *pos, enum move m)
+{
+	const enum color us = pos->stm, them = !us;
+	const enum direction up = us == WHITE ? NORTH : SOUTH;
+	const enum square from = MOVE_FROM(m), to = MOVE_TO(m);
+	const enum piece pc = pos->board[from], captured = pos->board[to];
+	struct position_state *st = ecalloc(1, sizeof(struct position_state));
+
+	*st = *(pos->st);
+	st->fifty_rule++;
+	if (pc == PAWN || captured != NO_PIECE)
+		st->fifty_rule = 0;
+	st->captured = captured;
+	st->prev = pos->st;
+	pos->st = st;
+	pos->game_ply++;
+
+	if (captured != NO_PIECE)
+		del_piece(pos, captured, to);
+	del_piece(pos, pc, from);
+	add_piece(pos, pc, to);
+
+	del_enpas(pos);
+
+	if (PIECE_TYPE(pc) == PAWN) {
+		if (from + 2 * up == to) {
+			add_enpas(pos, to + (us == WHITE ? SOUTH : NORTH));
+		} else if (MOVE_TYPE(m) == MT_PROMOTION) {
+			del_piece(pos, pc, to);
+			add_piece(pos, PIECE_MAKE(MOVE_PROMOTION(m), us), to);
+		} else if (MOVE_TYPE(m) == MT_ENPASSANT) {
+			del_piece(pos, PIECE_MAKE(PAWN, them), to - up);
+		}
+	} else if (PIECE_TYPE(pc) == KING) {
+		if (MOVE_TYPE(m) == MT_CASTLE) {
+			if (to < from) { // queenside (long)
+				del_piece(pos, PIECE_MAKE(ROOK, us),
+					  to + 2 * WEST);
+				add_piece(pos, PIECE_MAKE(ROOK, us), to + EAST);
+			} else { // kingside (short)
+				del_piece(pos, PIECE_MAKE(ROOK, us), to + EAST);
+				add_piece(pos, PIECE_MAKE(ROOK, us), to + WEST);
+			}
+		}
+	}
+
+	/* TODO: optimize */
+	pos->st->checkers = pos_attackers(pos, BB_TO_SQUARE(pos->piece[KING] &
+							    pos->color[them])) &
+			    pos->color[us];
+
+	flip_stm(pos);
+	update_castle(pos, from, to);
+}
+
+void pos_undo_move(struct position *pos, enum move m)
+{
+	flip_stm(pos);
+
+	const enum color us = pos->stm, them = !us;
+	const enum direction up = us == WHITE ? NORTH : SOUTH;
+	const enum square from = MOVE_FROM(m), to = MOVE_TO(m);
+	const enum piece pc = MOVE_TYPE(m) == MT_PROMOTION
+				? PIECE_MAKE(PAWN, us)
+				: pos->board[to];
+	const enum piece captured = pos->st->captured;
+	struct position_state *st = pos->st->prev;
+
+	if (PIECE_TYPE(pc) == PAWN) {
+		if (from + 2 * up == to) {
+			del_enpas(pos);
+		} else if (MOVE_TYPE(m) == MT_PROMOTION) {
+			del_piece(pos, PIECE_MAKE(MOVE_PROMOTION(m), us), to);
+			add_piece(pos, pc, to);
+		} else if (MOVE_TYPE(m) == MT_ENPASSANT) {
+			add_piece(pos, PIECE_MAKE(PAWN, them), to - up);
+		}
+	} else if (PIECE_TYPE(pc) == KING) {
+		if (MOVE_TYPE(m) == MT_CASTLE) {
+			if (to < from) { // queenside (long)
+				del_piece(pos, PIECE_MAKE(ROOK, us), to + EAST);
+				add_piece(pos, PIECE_MAKE(ROOK, us),
+					  to + 2 * WEST);
+			} else { // kingside (short)
+				del_piece(pos, PIECE_MAKE(ROOK, us), to + WEST);
+				add_piece(pos, PIECE_MAKE(ROOK, us), to + EAST);
+			}
+		}
+	}
+
+	del_piece(pos, pc, to);
+	add_piece(pos, pc, from);
+
+	if (captured != NO_PIECE)
+		add_piece(pos, captured, to);
+
+	free(pos->st);
+	pos->st = st;
+
+	pos->game_ply--;
+}
 u64 pos_attackers(const struct position *pos, enum square sq)
 {
 	return pos_attackers_occ(pos, sq, pos->piece[ALL_PIECES]);
