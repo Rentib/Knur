@@ -35,18 +35,18 @@ INLINE unsigned magic_hash(struct magic *m, u64 occ)
 	return occ >> (64 - m->shift);
 }
 
-static u64 between[SQ_NB][SQ_NB];         /* [square][square] */
-static u64 pawn_attacks[COLOR_NB][SQ_NB]; /* [color][square] */
-static u64 king_attacks[SQ_NB];           /* [square] */
-static u64 knight_attacks[SQ_NB];         /* [square] */
+static u64 between[SQUARE_NB][SQUARE_NB];         /* [square][square] */
+static u64 pawn_attacks[COLOR_NB][SQUARE_NB]; /* [color][square] */
+static u64 king_attacks[SQUARE_NB];           /* [square] */
+static u64 knight_attacks[SQUARE_NB];         /* [square] */
 
-static struct magic bishop_magics[SQ_NB]; /* [square] */
-static struct magic rook_magics[SQ_NB];   /* [square] */
+static struct magic bishop_magics[SQUARE_NB]; /* [square] */
+static struct magic rook_magics[SQUARE_NB];   /* [square] */
 
 void bb_init(void)
 {
 	enum square sq, sq2;
-	for (sq = 0; sq < SQ_NB; sq++) {
+	for (sq = 0; sq < SQUARE_NB; sq++) {
 		generate_king_attacks(sq);
 		generate_knight_attacks(sq);
 		generate_pawn_attacks(sq);
@@ -56,8 +56,8 @@ void bb_init(void)
 		find_magic(ROOK, sq);
 	}
 
-	for (sq = 0; sq < SQ_NB; sq++) {
-		for (sq2 = 0; sq2 < SQ_NB; sq2++) {
+	for (sq = 0; sq < SQUARE_NB; sq++) {
+		for (sq2 = 0; sq2 < SQUARE_NB; sq2++) {
 			if (BB_TEST(bb_attacks(BISHOP, sq, 0ULL), sq2)) {
 				between[sq][sq2] =
 				    bb_attacks(BISHOP, sq,
@@ -77,7 +77,7 @@ void bb_init(void)
 void bb_free(void)
 {
 	enum square sq;
-	for (sq = 0; sq < SQ_NB; sq++) {
+	for (sq = 0; sq < SQUARE_NB; sq++) {
 		free(bishop_magics[sq].attacks);
 		free(rook_magics[sq].attacks);
 	}
