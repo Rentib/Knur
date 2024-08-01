@@ -31,6 +31,8 @@ void pos_print(const struct position *position);
 void pos_do_move(struct position *position, enum move move);
 void pos_undo_move(struct position *position, enum move move);
 
+bool pos_is_legal(const struct position *position, enum move move);
+
 u64 pos_attackers(const struct position *position, enum square);
 u64 pos_attackers_occ(const struct position *position, enum square square,
 		      u64 occupancy);

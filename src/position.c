@@ -297,6 +297,36 @@ void pos_undo_move(struct position *pos, enum move m)
 
 	pos->game_ply--;
 }
+
+bool pos_is_legal(const struct position *pos, enum move m)
+{
+	const enum color us = pos->stm, them = !us;
+	const enum square from = MOVE_FROM(m), to = MOVE_TO(m),
+			  ksq = BB_TO_SQUARE(pos->piece[KING] & pos->color[us]);
+	const enum direction down = us == WHITE ? SOUTH : NORTH;
+	u64 enemies = pos->color[them];
+	u64 occ = pos->piece[ALL_PIECES];
+
+	BB_RESET(enemies, to);
+	BB_XOR(occ, from);
+	BB_SET(occ, to);
+
+	if (ksq == from)
+		return !(pos_attackers_occ(pos, to, occ) & enemies);
+
+	if (MOVE_TYPE(m) == MT_ENPASSANT) {
+		BB_XOR(enemies, to + down);
+		BB_XOR(occ, to + down);
+	}
+
+	/* check for discovered checks */
+	return !(((bb_attacks(ROOK, ksq, occ) &
+		   (pos->piece[ROOK] | pos->piece[QUEEN])) |
+		  (bb_attacks(BISHOP, ksq, occ) &
+		   (pos->piece[BISHOP] | pos->piece[QUEEN]))) &
+		 enemies);
+}
+
 u64 pos_attackers(const struct position *pos, enum square sq)
 {
 	return pos_attackers_occ(pos, sq, pos->piece[ALL_PIECES]);
