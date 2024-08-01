@@ -28,4 +28,8 @@ void pos_destroy(struct position *position);
 void pos_set_fen(struct position *position, const char *fen);
 void pos_print(const struct position *position);
 
+u64 pos_attackers(const struct position *position, enum square);
+u64 pos_attackers_occ(const struct position *position, enum square square,
+		      u64 occupancy);
+
 #endif /* KNUR_POSITION_H_ */

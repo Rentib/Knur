@@ -158,3 +158,20 @@ void pos_print(const struct position *pos)
 	       pos->st->castle & 8 ? 'k' : '-',
 	       pos->st->castle & 2 ? 'q' : '-');
 }
+
+u64 pos_attackers(const struct position *pos, enum square sq)
+{
+	return pos_attackers_occ(pos, sq, pos->piece[ALL_PIECES]);
+}
+
+/* clang-format off */
+u64 pos_attackers_occ(const struct position *pos, enum square sq, u64 occ)
+{
+	return (((bb_pawn_attacks(WHITE, sq) & pos->color[BLACK])
+	     |   (bb_pawn_attacks(BLACK, sq) & pos->color[WHITE])) & pos->piece[PAWN])
+	     |   (bb_attacks(KNIGHT, sq, occ) &  pos->piece[KNIGHT])
+	     |   (bb_attacks(BISHOP, sq, occ) & (pos->piece[BISHOP] | pos->piece[QUEEN]))
+	     |   (bb_attacks(ROOK,   sq, occ) & (pos->piece[  ROOK] | pos->piece[QUEEN]))
+	     |   (bb_attacks(KING,   sq, occ) &  pos->piece[  KING]);
+}
+/* clang-format on */
