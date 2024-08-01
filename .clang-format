@@ -12,3 +12,4 @@ AlignConsecutiveShortCaseStatements:
   AlignCaseColons: false
 AllowShortBlocksOnASingleLine: Empty
 AllowShortCaseLabelsOnASingleLine: true
+AlignOperands: AlignAfterOperator

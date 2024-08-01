@@ -144,8 +144,8 @@ void pos_print(const struct position *pos)
 		for (file = 0; file < 8; file++, sq++) {
 			c = BB_TEST(pos->color[BLACK], sq) ? 32 : 0;
 			c |= pos->board[sq] == NO_PIECE
-				 ? ' '
-				 : ptc[PIECE_TYPE(pos->board[sq])];
+			       ? ' '
+			       : ptc[PIECE_TYPE(pos->board[sq])];
 			printf(" %c |", c);
 		}
 		printf("\n  %s\n", sep);

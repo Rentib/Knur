@@ -35,7 +35,7 @@ INLINE unsigned magic_hash(struct magic *m, u64 occ)
 	return occ >> (64 - m->shift);
 }
 
-static u64 between[SQUARE_NB][SQUARE_NB];         /* [square][square] */
+static u64 between[SQUARE_NB][SQUARE_NB];     /* [square][square] */
 static u64 pawn_attacks[COLOR_NB][SQUARE_NB]; /* [color][square] */
 static u64 king_attacks[SQUARE_NB];           /* [square] */
 static u64 knight_attacks[SQUARE_NB];         /* [square] */

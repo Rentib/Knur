@@ -17,8 +17,8 @@ struct position {
 	u64 empty;                /* bitboard for empty squares */
 	u64 color[COLOR_NB];      /* [color] bitboards for colors */
 	u64 piece[PIECE_TYPE_NB]; /* [piece type] bitboards for piece types */
-	enum piece board[SQUARE_NB];  /* [square] piece on each square */
-	int game_ply;             /* game halfmove counter */
+	enum piece board[SQUARE_NB]; /* [square] piece on each square */
+	int game_ply;                /* game halfmove counter */
 
 	struct position_state *st; /* state of position */
 };
