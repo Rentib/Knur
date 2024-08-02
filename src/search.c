@@ -24,6 +24,8 @@ struct search_stack {
 	enum move *pv;  /* principal variation */
 };
 
+static int quiescence(struct position *position,
+		      struct search_stack *search_stack, int alpha, int beta);
 static int negamax(struct position *position, struct search_stack *search_stack,
 		   int alpha, int beta, int depth);
 static void *search(void *arg);
@@ -34,6 +36,41 @@ static atomic_bool running = false, thrd_joined = true;
 static pthread_t thrd;
 static jmp_buf jbuffer;
 
+static int quiescence(struct position *pos, struct search_stack *ss, int alpha,
+		      int beta)
+{
+	int score = evaluate(pos);
+	enum move move_list[256], *last, *m;
+
+	if (!running)
+		longjmp(jbuffer, 1);
+	nodes++;
+
+	if (score >= beta)
+		return beta;
+	if (score > alpha)
+		alpha = score;
+
+	last = mg_generate(MGT_CAPTURES, move_list, pos);
+
+	for (m = move_list; m != last; m++) {
+		if (!pos_is_legal(pos, *m))
+			continue;
+
+		ss->move = *m;
+		pos_do_move(pos, *m);
+		score = -quiescence(pos, ss, -beta, -alpha);
+		pos_undo_move(pos, *m);
+
+		if (score >= beta)
+			return beta;
+		if (score > alpha)
+			alpha = score;
+	}
+
+	return alpha;
+}
+
 int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	    int depth)
 {
@@ -43,21 +80,22 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	enum move bestmove;
 	enum move move_list[256], *last, *m;
 
-	if (!running)
-		longjmp(jbuffer, 1);
-	nodes++;
-
 	if (!isroot) {
 		if (!depth) {
-			/* TODO: quiescence */
+			/* don't enter quiescence in check */
 			if (!pos->st->checkers)
-				return evaluate(pos);
-			return 0;
+				return quiescence(pos, ss, alpha, beta);
+			depth = 1;
 		}
 
+		/* end search or it might segfault */
 		if (ss->ply >= MAX_PLY - 1)
 			return pos->st->checkers ? 0 : evaluate(pos);
 	}
+
+	if (!running)
+		longjmp(jbuffer, 1);
+	nodes++;
 
 	last = mg_generate(MGT_ALL, move_list, pos);
 	for (m = move_list; m != last; m++) {
