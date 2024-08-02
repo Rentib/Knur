@@ -13,3 +13,4 @@ AlignConsecutiveShortCaseStatements:
 AllowShortBlocksOnASingleLine: Empty
 AllowShortCaseLabelsOnASingleLine: true
 AlignOperands: AlignAfterOperator
+AlignArrayOfStructures: Left
