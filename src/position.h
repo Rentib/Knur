@@ -9,8 +9,6 @@ struct position_state {
 	int fifty_rule;      /* fifty move rule */
 	enum piece captured; /* captured piece */
 	u64 checkers;        /* bitboard of pieces giving a check */
-
-	struct position_state *prev; /* pointer to previous position state */
 };
 
 struct position {
@@ -20,11 +18,10 @@ struct position {
 	enum piece board[SQUARE_NB]; /* [square] piece on each square */
 	int game_ply;                /* game halfmove counter */
 
-	struct position_state *st; /* state of position */
+	struct position_state state_stack[MAX_MOVES]; /* state stack */
+	struct position_state *st;                    /* state of position */
 };
 
-void pos_init(struct position *position);
-void pos_destroy(struct position *position);
 void pos_set_fen(struct position *position, const char *fen);
 void pos_print(const struct position *position);
 

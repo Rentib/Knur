@@ -10,7 +10,7 @@
 #include "util.h"
 
 struct arg {
-	struct position *pos;
+	struct position pos;
 	struct search_limits limits;
 };
 
@@ -23,12 +23,12 @@ static pthread_t thrd;
 void *search(void *arg)
 {
 	struct arg *starg = arg;
-	struct position *pos = starg->pos;
+	struct position *pos = &starg->pos;
 	struct search_limits *limits = &starg->limits;
 	pthread_t manager;
 	int maxdepth = limits->depth;
 
-	if (maxdepth <= 0 || maxdepth > MAX_PLY)
+	if (maxdepth <= 0 || MAX_PLY <= maxdepth)
 		maxdepth = MAX_PLY;
 
 	(void)pos;
@@ -46,6 +46,7 @@ void *search(void *arg)
 	if (pthread_cancel(manager))
 		die("pthread_cancel:");
 
+	free(arg);
 	running = false;
 	return nullptr;
 }
@@ -56,7 +57,6 @@ static void *time_manager(void *arg)
 	int time = limits->time, inc = limits->inc,
 	    movestogo = limits->movestogo, movetime = limits->movetime;
 
-	free(arg);
 	if (movetime != -1) {
 		movestogo = 1;
 		time = movetime;
@@ -79,7 +79,7 @@ bool search_running(void) { return running; }
 void search_start(struct position *pos, struct search_limits *limits)
 {
 	struct arg *arg = ecalloc(1, sizeof(struct arg));
-	arg->pos = pos;
+	arg->pos = *pos;
 	arg->limits = *limits;
 	running = true;
 	if (!thrd_joined)

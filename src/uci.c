@@ -193,8 +193,7 @@ void uci_loop(void)
 	setbuf(stdin, nullptr);
 	setbuf(stdout, nullptr);
 
-	pos_init(pos);
-
+	pos_set_fen(pos, nullptr);
 	for (running = true; running;) {
 		readline(cmd);
 		if (!*cmd)
@@ -212,7 +211,6 @@ void uci_loop(void)
 	}
 
 	search_stop();
-	pos_destroy(pos);
 }
 
 void readline(char *input)

@@ -59,34 +59,13 @@ void update_castle(struct position *pos, enum square from, enum square to)
 	pos->st->castle &= castling_table[from] & castling_table[to];
 }
 
-void pos_init(struct position *pos)
-{
-	pos->st = ecalloc(1, sizeof(struct position_state));
-	pos_set_fen(pos, nullptr);
-}
-
-void pos_destroy(struct position *pos)
-{
-	struct position_state *st;
-	while (pos->st) {
-		st = pos->st;
-		pos->st = st->prev;
-		free(st);
-	}
-}
-
 void pos_set_fen(struct position *pos, const char *fen)
 {
 	char c, *str, *saveptr = nullptr, *token;
 	enum square sq;
 	enum color color;
-	struct position_state *st;
 
-	while (pos->st->prev) {
-		st = pos->st;
-		pos->st = st->prev;
-		free(st);
-	}
+	memset(pos, 0, sizeof(struct position));
 
 	fen = fen == nullptr ? START_FEN : fen;
 
@@ -96,12 +75,13 @@ void pos_set_fen(struct position *pos, const char *fen)
 	ARRAY_FILL(pos->board, NO_PIECE);
 	pos->game_ply = 0;
 
+	pos->st = pos->state_stack;
 	pos->st->enpas = SQ_NONE;
 	pos->st->castle = 0;
 	pos->st->fifty_rule = 0;
 	pos->st->captured = NO_PIECE;
 	pos->st->checkers = 0;
-	pos->st->prev = nullptr;
+	pos->st = pos->state_stack;
 
 	str = strdup(fen);
 	token = strtok_r(str, " ", &saveptr);
@@ -202,14 +182,13 @@ void pos_do_move(struct position *pos, enum move m)
 	const enum direction up = us == WHITE ? NORTH : SOUTH;
 	const enum square from = MOVE_FROM(m), to = MOVE_TO(m);
 	const enum piece pc = pos->board[from], captured = pos->board[to];
-	struct position_state *st = ecalloc(1, sizeof(struct position_state));
+	struct position_state *st = pos->st + 1;
 
 	*st = *(pos->st);
 	st->fifty_rule++;
 	if (pc == PAWN || captured != NO_PIECE)
 		st->fifty_rule = 0;
 	st->captured = captured;
-	st->prev = pos->st;
 	pos->st = st;
 	pos->game_ply++;
 
@@ -262,7 +241,7 @@ void pos_undo_move(struct position *pos, enum move m)
 				? PIECE_MAKE(PAWN, us)
 				: pos->board[to];
 	const enum piece captured = pos->st->captured;
-	struct position_state *st = pos->st->prev;
+	struct position_state *st = pos->st - 1;
 
 	if (PIECE_TYPE(pc) == PAWN) {
 		if (from + 2 * up == to) {
@@ -292,7 +271,6 @@ void pos_undo_move(struct position *pos, enum move m)
 	if (captured != NO_PIECE)
 		add_piece(pos, captured, to);
 
-	free(pos->st);
 	pos->st = st;
 
 	pos->game_ply--;
