@@ -29,6 +29,7 @@ static int negamax(struct position *position, struct search_stack *search_stack,
 static void *search(void *arg);
 static void *time_manager(void *arg);
 
+static u64 nodes;
 static atomic_bool running = false, thrd_joined = true;
 static pthread_t thrd;
 static jmp_buf jbuffer;
@@ -44,6 +45,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 
 	if (!running)
 		longjmp(jbuffer, 1);
+	nodes++;
 
 	if (!isroot) {
 		if (!depth) {
@@ -101,6 +103,7 @@ void *search(void *arg)
 
 	if (maxdepth <= 0 || MAX_PLY <= maxdepth)
 		maxdepth = MAX_PLY;
+	nodes = 0;
 
 	/* initialize search stack */
 	for (i = 0; i < MAX_PLY; i++) {
@@ -122,6 +125,7 @@ void *search(void *arg)
 
 		printf("info depth %d ", depth);
 		printf("score cp %d ", score);
+		printf("nodes %zu ", nodes);
 		printf("time %zu ", gettime() - limits->start);
 		printf("pv");
 		for (i = 0; i < depth && ss->pv[i] != MOVE_NONE; i++)
