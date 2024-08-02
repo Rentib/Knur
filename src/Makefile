@@ -5,7 +5,7 @@ CFLAGS  = -std=c2x -Wall -Wextra -Werror -pedantic -pthread \
 LDFLAGS = -pthread
 CC      = clang
 
-REQ = bitboards movegen perft position util
+REQ = bitboards movegen perft position uci util
 
 all: CFLAGS += -O3 -ffast-math
 all: CFLAGS += -march=native -m64 -mpopcnt
