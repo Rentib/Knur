@@ -6,7 +6,13 @@
 enum color { WHITE, BLACK, COLOR_NB };
 
 enum piece_type {
-	PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING, ALL_PIECES,
+	PAWN,
+	KNIGHT,
+	BISHOP,
+	ROOK,
+	QUEEN,
+	KING,
+	ALL_PIECES,
 	PIECE_TYPE_NB
 };
 
@@ -116,8 +122,8 @@ enum move_type {
 #define STALEMATE      (0)
 #define CHECKMATE      (32000 + MAX_PLY)
 #define UNKNOWN        (CHECKMATE + 1)
-#define MATE_IN(n)     (CHECKMATE - (n))
-#define MATED_IN(n)    (CHECKMATE + (n))
+#define MATE_IN(n)     (+CHECKMATE - (n))
+#define MATED_IN(n)    (-CHECKMATE + (n))
 #define IS_MATE(score) (ABS(score) >= CHECKMATE - MAX_PLY)
 
 #define INLINE static inline __attribute__((always_inline))

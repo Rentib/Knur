@@ -79,6 +79,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	int score, bestscore = -CHECKMATE;
 	enum move move, bestmove = MOVE_NONE;
 	struct move_picker mp;
+	int movecount = 0;
 
 	if (!isroot) {
 		if (!depth) {
@@ -102,6 +103,8 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 		if (!pos_is_legal(pos, move))
 			continue;
 
+		movecount++;
+
 		ss->move = move;
 		pos_do_move(pos, move);
 		score = -negamax(pos, ss + 1, -beta, -alpha, depth - 1);
@@ -123,6 +126,9 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 			       sizeof(enum move) * depth);
 		}
 	}
+
+	if (!movecount)
+		bestscore = pos->st->checkers ? MATED_IN(ss->ply) : 0;
 
 	return bestscore;
 }
@@ -162,7 +168,12 @@ void *search(void *arg)
 		bestmove = *ss->pv;
 
 		printf("info depth %d ", depth);
-		printf("score cp %d ", score);
+		if (IS_MATE(score))
+			printf("score mate %d ",
+			       score > 0 ? +(CHECKMATE - score + 1) / 2
+					 : -(CHECKMATE + score + 1) / 2);
+		else
+			printf("score cp %d ", score);
 		printf("nodes %zu ", nodes);
 		printf("time %zu ", gettime() - limits->start);
 		printf("pv");
