@@ -20,6 +20,7 @@ struct move_picker {
 };
 
 void mp_init(struct move_picker *mp);
-enum move mp_next(struct move_picker *mp, struct position *position);
+enum move mp_next(struct move_picker *mp, struct position *position,
+		  bool skip_quiet);
 
 #endif /* KNUR_MOVEPICKER_H_ */
