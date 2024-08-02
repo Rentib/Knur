@@ -9,6 +9,7 @@
 #include "evaluate.h"
 #include "knur.h"
 #include "movegen.h"
+#include "movepicker.h"
 #include "position.h"
 #include "search.h"
 #include "util.h"
@@ -75,10 +76,9 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	    int depth)
 {
 	int isroot = !ss->ply;
-	int score;
-	int bestscore = -CHECKMATE;
-	enum move bestmove;
-	enum move move_list[256], *last, *m;
+	int score, bestscore = -CHECKMATE;
+	enum move move, bestmove = MOVE_NONE;
+	struct move_picker mp;
 
 	if (!isroot) {
 		if (!depth) {
@@ -97,20 +97,20 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 		longjmp(jbuffer, 1);
 	nodes++;
 
-	last = mg_generate(MGT_ALL, move_list, pos);
-	for (m = move_list; m != last; m++) {
-		if (!pos_is_legal(pos, *m))
+	mp_init(&mp);
+	while ((move = mp_next(&mp, pos, false))) {
+		if (!pos_is_legal(pos, move))
 			continue;
 
-		ss->move = *m;
-		pos_do_move(pos, *m);
+		ss->move = move;
+		pos_do_move(pos, move);
 		score = -negamax(pos, ss + 1, -beta, -alpha, depth - 1);
-		pos_undo_move(pos, *m);
+		pos_undo_move(pos, move);
 
 		if (score <= bestscore)
 			continue;
 		bestscore = score;
-		bestmove = *m;
+		bestmove = move;
 
 		if (score >= beta)
 			break;
