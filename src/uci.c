@@ -6,12 +6,13 @@
 #include "movegen.h"
 #include "perft.h"
 #include "position.h"
+#include "search.h"
 #include "uci.h"
 #include "util.h"
 
 struct parser {
-	const char *cmd;                         // command
-	void (*func)(struct position *, char *); // function
+	const char *cmd;                         /* command */
+	void (*func)(struct position *, char *); /* function */
 };
 
 /* helper functions */
@@ -24,6 +25,9 @@ static void isready(struct position *position, char *fmt);
 static void setoption(struct position *position, char *fmt);
 static void ucinewgame(struct position *position, char *fmt);
 static void position(struct position *position, char *fmt);
+static void go(struct position *position, char *fmt);
+static void stop(struct position *position, char *fmt);
+static void quit(struct position *position, char *fmt);
 
 /* non-uci functions */
 static void display(struct position *position, char *fmt);
@@ -35,6 +39,9 @@ static struct parser parser[] = {
     {"setoption",  setoption },
     {"ucinewgame", ucinewgame},
     {"position",   position  },
+    {"go",         go        },
+    {"stop",       stop      },
+    {"quit",       quit      },
     {"d\0",        display   },
     {"perft",      perft_    },
 };
@@ -43,6 +50,8 @@ static bool running;
 
 void uci([[maybe_unused]] struct position *pos, [[maybe_unused]] char *fmt)
 {
+	if (search_running())
+		return;
 	printf("id name Knur\n");
 	printf("id author Stanisław Bitner\n");
 	/*printf("option name ...");*/
@@ -51,23 +60,30 @@ void uci([[maybe_unused]] struct position *pos, [[maybe_unused]] char *fmt)
 
 void isready([[maybe_unused]] struct position *pos, [[maybe_unused]] char *fmt)
 {
-	printf("readyok\n");
+	if (!search_running())
+		printf("readyok\n");
 }
 
 void setoption([[maybe_unused]] struct position *pos,
 	       [[maybe_unused]] char *fmt)
 {
+	if (search_running())
+		return;
 }
 
 void ucinewgame(struct position *pos, [[maybe_unused]] char *fmt)
 {
-	pos_set_fen(pos, nullptr);
+	if (!search_running())
+		pos_set_fen(pos, nullptr);
 }
 
 void position(struct position *pos, char *fmt)
 {
 	char *token, *moves;
 	enum move m;
+
+	if (search_running())
+		return;
 
 	if ((moves = strstr(fmt, "moves")))
 		moves[-1] = '\0';
@@ -93,14 +109,78 @@ void position(struct position *pos, char *fmt)
 	}
 }
 
+void go(struct position *pos, char *fmt)
+{
+	char *token, *saveptr = nullptr;
+
+	if (search_running())
+		return;
+
+	struct search_limits limits = {
+	    .time = -1,
+	    .inc = 0,
+	    .movestogo = 30,
+	    .depth = 0,
+	    .movetime = -1,
+	    .infinite = false,
+	};
+
+	for (token = strtok_r(fmt, " ", &saveptr); token;
+	     token = strtok_r(nullptr, " ", &saveptr)) {
+		if (!strcmp(token, "wtime")) {
+			token = strtok_r(nullptr, " ", &saveptr);
+			if (pos->stm == WHITE)
+				limits.time = atoi(token);
+		} else if (!strcmp(token, "btime")) {
+			token = strtok_r(nullptr, " ", &saveptr);
+			if (pos->stm == BLACK)
+				limits.time = atoi(token);
+		} else if (!strcmp(token, "winc")) {
+			token = strtok_r(nullptr, " ", &saveptr);
+			if (pos->stm == WHITE)
+				limits.inc = atoi(token);
+		} else if (!strcmp(token, "binc")) {
+			token = strtok_r(nullptr, " ", &saveptr);
+			if (pos->stm == BLACK)
+				limits.inc = atoi(token);
+		} else if (!strcmp(token, "movestogo")) {
+			token = strtok_r(nullptr, " ", &saveptr);
+			limits.movestogo = atoi(token);
+		} else if (!strcmp(token, "depth")) {
+			token = strtok_r(nullptr, " ", &saveptr);
+			limits.depth = atoi(token);
+		} else if (!strcmp(token, "movetime")) {
+			token = strtok_r(nullptr, " ", &saveptr);
+			limits.movetime = atoi(token);
+		} else if (!strcmp(token, "infinite")) {
+			limits.infinite = true;
+		}
+	}
+
+	search_start(pos, &limits);
+}
+
+void stop([[maybe_unused]] struct position *pos, [[maybe_unused]] char *fmt)
+{
+	search_stop();
+}
+
+void quit(struct position *pos, char *fmt)
+{
+	stop(pos, fmt);
+	running = false;
+}
+
 void display(struct position *pos, [[maybe_unused]] char *fmt)
 {
-	pos_print(pos);
+	if (!search_running())
+		pos_print(pos);
 }
 
 void perft_(struct position *pos, char *fmt)
 {
-	perft(pos, atoi(fmt + strlen("perft")));
+	if (!search_running())
+		perft(pos, atoi(fmt + strlen("perft")));
 }
 
 void uci_loop(void)
@@ -131,6 +211,7 @@ void uci_loop(void)
 			printf("Unknown command: \'%s\'.\n", cmd);
 	}
 
+	search_stop();
 	pos_destroy(pos);
 }
 
