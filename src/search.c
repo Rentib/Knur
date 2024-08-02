@@ -169,7 +169,8 @@ bool search_running(void) { return running; }
 void search_start(struct position *pos, struct search_limits *limits)
 {
 	struct arg *arg = ecalloc(1, sizeof(struct arg));
-	arg->pos = *pos; /* copy board */
+	arg->pos = *pos; /* copy position without state pointer */
+	arg->pos.st = arg->pos.state_stack + (pos->st - pos->state_stack);
 	arg->limits = limits;
 	running = true;
 	if (!thrd_joined)
