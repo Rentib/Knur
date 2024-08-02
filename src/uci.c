@@ -111,19 +111,18 @@ void position(struct position *pos, char *fmt)
 
 void go(struct position *pos, char *fmt)
 {
+	static struct search_limits limits;
 	char *token, *saveptr = nullptr;
 
 	if (search_running())
 		return;
 
-	struct search_limits limits = {
-	    .time = -1,
-	    .inc = 0,
-	    .movestogo = 30,
-	    .depth = 0,
-	    .movetime = -1,
-	    .infinite = false,
-	};
+	limits.time = -1;
+	limits.inc = 0;
+	limits.movestogo = 30;
+	limits.depth = 0;
+	limits.movetime = -1;
+	limits.infinite = false;
 
 	for (token = strtok_r(fmt, " ", &saveptr); token;
 	     token = strtok_r(nullptr, " ", &saveptr)) {
@@ -156,6 +155,8 @@ void go(struct position *pos, char *fmt)
 			limits.infinite = true;
 		}
 	}
+
+	limits.start = gettime();
 
 	search_start(pos, &limits);
 }

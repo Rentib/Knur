@@ -14,7 +14,7 @@
 
 struct arg {
 	struct position pos;
-	struct search_limits limits;
+	struct search_limits *limits;
 };
 
 struct search_stack {
@@ -87,7 +87,7 @@ void *search(void *arg)
 {
 	struct arg *starg = arg;
 	struct position *pos = &starg->pos;
-	struct search_limits *limits = &starg->limits;
+	struct search_limits *limits = starg->limits;
 	pthread_t manager;
 	int maxdepth = limits->depth;
 	struct search_stack search_stack[MAX_PLY + 2] = {0};
@@ -129,7 +129,7 @@ void *search(void *arg)
 
 static void *time_manager(void *arg)
 {
-	struct search_limits *limits = &((struct arg *)arg)->limits;
+	struct search_limits *limits = ((struct arg *)arg)->limits;
 	int time = limits->time, inc = limits->inc,
 	    movestogo = limits->movestogo, movetime = limits->movetime;
 
@@ -155,8 +155,8 @@ bool search_running(void) { return running; }
 void search_start(struct position *pos, struct search_limits *limits)
 {
 	struct arg *arg = ecalloc(1, sizeof(struct arg));
-	arg->pos = *pos;
-	arg->limits = *limits;
+	arg->pos = *pos; /* copy board */
+	arg->limits = limits;
 	running = true;
 	if (!thrd_joined)
 		pthread_join(thrd, nullptr);
