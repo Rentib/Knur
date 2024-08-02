@@ -50,8 +50,6 @@ static bool running;
 
 void uci([[maybe_unused]] struct position *pos, [[maybe_unused]] char *fmt)
 {
-	if (search_running())
-		return;
 	printf("id name Knur\n");
 	printf("id author Stanisław Bitner\n");
 	/*printf("option name ...");*/
@@ -60,8 +58,7 @@ void uci([[maybe_unused]] struct position *pos, [[maybe_unused]] char *fmt)
 
 void isready([[maybe_unused]] struct position *pos, [[maybe_unused]] char *fmt)
 {
-	if (!search_running())
-		printf("readyok\n");
+	printf("readyok\n");
 }
 
 void setoption([[maybe_unused]] struct position *pos,
@@ -73,17 +70,13 @@ void setoption([[maybe_unused]] struct position *pos,
 
 void ucinewgame(struct position *pos, [[maybe_unused]] char *fmt)
 {
-	if (!search_running())
-		pos_set_fen(pos, nullptr);
+	pos_set_fen(pos, nullptr);
 }
 
 void position(struct position *pos, char *fmt)
 {
 	char *token, *moves;
 	enum move m;
-
-	if (search_running())
-		return;
 
 	if ((moves = strstr(fmt, "moves")))
 		moves[-1] = '\0';
@@ -174,14 +167,12 @@ void quit(struct position *pos, char *fmt)
 
 void display(struct position *pos, [[maybe_unused]] char *fmt)
 {
-	if (!search_running())
-		pos_print(pos);
+	pos_print(pos);
 }
 
 void perft_(struct position *pos, char *fmt)
 {
-	if (!search_running())
-		perft(pos, atoi(fmt + strlen("perft")));
+	perft(pos, atoi(fmt + strlen("perft")));
 }
 
 void uci_loop(void)
