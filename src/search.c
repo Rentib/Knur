@@ -3,6 +3,7 @@
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <threads.h>
 
 #include "evaluate.h"
@@ -18,8 +19,9 @@ struct arg {
 };
 
 struct search_stack {
-	int ply;
-	enum move move;
+	int ply;        /* halfmove counter */
+	enum move move; /* current move */
+	enum move *pv;  /* principal variation */
 };
 
 static int negamax(struct position *position, struct search_stack *search_stack,
@@ -73,12 +75,14 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 		if (score >= beta)
 			break;
 
-		if (score > alpha)
+		if (score > alpha) {
 			alpha = score;
-	}
 
-	if (isroot)
-		ss->move = bestmove;
+			*ss->pv = bestmove;
+			memcpy(ss->pv + 1, (ss + 1)->pv,
+			       sizeof(enum move) * depth);
+		}
+	}
 
 	return bestscore;
 }
@@ -89,18 +93,20 @@ void *search(void *arg)
 	struct position *pos = &starg->pos;
 	struct search_limits *limits = starg->limits;
 	pthread_t manager;
-	int maxdepth = limits->depth;
 	struct search_stack search_stack[MAX_PLY + 2] = {0};
 	struct search_stack *ss = search_stack + 2;
-	unsigned i;
-	int depth, score;
+	int maxdepth = limits->depth;
+	int i, depth, score;
+	enum move bestmove;
 
 	if (maxdepth <= 0 || MAX_PLY <= maxdepth)
 		maxdepth = MAX_PLY;
 
 	/* initialize search stack */
-	for (i = 0; i < MAX_PLY; i++)
+	for (i = 0; i < MAX_PLY; i++) {
 		(ss + i)->ply = i;
+		(ss + i)->pv = ecalloc(MAX_PLY - i, sizeof(enum move));
+	}
 
 	if (pthread_create(&manager, nullptr, time_manager, arg))
 		die("pthread_create:");
@@ -112,16 +118,24 @@ void *search(void *arg)
 			break;
 
 		score = negamax(pos, ss, -CHECKMATE, CHECKMATE, depth);
+		bestmove = *ss->pv;
 
 		printf("info depth %d ", depth);
-		printf("score cp %d\n", score);
+		printf("score cp %d ", score);
+		printf("time %zu ", gettime() - limits->start);
+		printf("pv");
+		for (i = 0; i < depth && ss->pv[i] != MOVE_NONE; i++)
+			printf(" %s", MOVE_STR(ss->pv[i]));
+		printf("\n");
 	}
 
-	printf("bestmove %s\n", MOVE_STR(ss->move));
+	printf("bestmove %s\n", MOVE_STR(bestmove));
 
 	if (pthread_cancel(manager))
 		die("pthread_cancel:");
 
+	for (i = 0; i < MAX_PLY; i++)
+		free((ss + i)->pv);
 	free(arg);
 	running = false;
 	return nullptr;
