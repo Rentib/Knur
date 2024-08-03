@@ -5,7 +5,8 @@ CFLAGS  = -std=c2x -Wall -Wextra -Werror -pedantic -pthread \
 LDFLAGS = -pthread
 CC      = clang
 
-REQ = bitboards evaluate movegen movepicker perft position search uci util
+REQ = bitboards evaluate movegen movepicker perft position search transposition \
+	  uci util
 
 all: CFLAGS += -O3 -ffast-math
 all: CFLAGS += -march=native -m64 -mpopcnt
