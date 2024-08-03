@@ -12,15 +12,18 @@ struct position_state {
 };
 
 struct position {
-	enum color stm;           /* side to move */
-	u64 color[COLOR_NB];      /* [color] bitboards for colors */
-	u64 piece[PIECE_TYPE_NB]; /* [piece type] bitboards for piece types */
+	enum color stm;              /* side to move */
+	u64 color[COLOR_NB];         /* [color] colors' bitboards */
+	u64 piece[PIECE_TYPE_NB];    /* [piece type] piece types' bitboards */
 	enum piece board[SQUARE_NB]; /* [square] piece on each square */
 	int game_ply;                /* game halfmove counter */
+	u64 key;                     /* zobrist hash */
 
 	struct position_state state_stack[MAX_MOVES]; /* state stack */
 	struct position_state *st;                    /* state of position */
 };
+
+void pos_init(void);
 
 void pos_set_fen(struct position *position, const char *fen);
 void pos_print(const struct position *position);

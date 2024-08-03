@@ -20,10 +20,22 @@ INLINE void flip_stm(struct position *position);
 INLINE void update_castle(struct position *pos, enum square from,
 			  enum square to);
 
-void add_enpas(struct position *pos, enum square sq) { pos->st->enpas = sq; }
+static struct {
+	u64 piece_square[PIECE_NB][SQUARE_NB]; /* [piece][square] */
+	u64 side;                              /* side to move */
+	u64 castle[16];                        /* [castle mask] */
+	u64 enpassant[8];                      /* [file] */
+} zobrist;
+
+void add_enpas(struct position *pos, enum square sq)
+{
+	pos->key ^= zobrist.enpassant[SQ_FILE(sq)];
+	pos->st->enpas = sq;
+}
 
 void add_piece(struct position *pos, enum piece pc, enum square sq)
 {
+	pos->key ^= zobrist.piece_square[pc][sq];
 	BB_SET(pos->color[PIECE_COLOR(pc)], sq);
 	BB_SET(pos->piece[PIECE_TYPE(pc)], sq);
 	BB_SET(pos->piece[ALL_PIECES], sq);
@@ -33,19 +45,25 @@ void add_piece(struct position *pos, enum piece pc, enum square sq)
 void del_enpas(struct position *pos)
 {
 	if (pos->st->enpas != SQ_NONE) {
+		pos->key ^= zobrist.enpassant[SQ_FILE(pos->st->enpas)];
 		pos->st->enpas = SQ_NONE;
 	}
 }
 
 void del_piece(struct position *pos, enum piece pc, enum square sq)
 {
+	pos->key ^= zobrist.piece_square[pc][sq];
 	BB_XOR(pos->color[PIECE_COLOR(pc)], sq);
 	BB_XOR(pos->piece[PIECE_TYPE(pc)], sq);
 	BB_XOR(pos->piece[ALL_PIECES], sq);
 	pos->board[sq] = NO_PIECE;
 }
 
-void flip_stm(struct position *pos) { pos->stm ^= 1; }
+void flip_stm(struct position *pos)
+{
+	pos->key ^= zobrist.side;
+	pos->stm ^= 1;
+}
 
 void update_castle(struct position *pos, enum square from, enum square to)
 {
@@ -56,7 +74,22 @@ void update_castle(struct position *pos, enum square from, enum square to)
 	    15, 15, 15, 15, 15, 15, 15, 15, 14, 15, 15, 15, 10, 15, 15, 11,
 	};
 
+	pos->key ^= zobrist.castle[pos->st->castle];
 	pos->st->castle &= castling_table[from] & castling_table[to];
+	pos->key ^= zobrist.castle[pos->st->castle];
+}
+
+void pos_init(void)
+{
+	unsigned i, j;
+	for (i = 0; i < PIECE_NB; i++)
+		for (j = 0; j < SQUARE_NB; j++)
+			zobrist.piece_square[i][j] = rand_u64();
+	zobrist.side = rand_u64();
+	for (i = 0; i < 16; i++)
+		zobrist.castle[i] = rand_u64();
+	for (i = 0; i < 8; i++)
+		zobrist.enpassant[i] = rand_u64();
 }
 
 void pos_set_fen(struct position *pos, const char *fen)
@@ -125,6 +158,7 @@ void pos_set_fen(struct position *pos, const char *fen)
 		default:  die("wrong fen");
 		}
 	}
+	pos->key ^= zobrist.castle[pos->st->castle];
 
 	/* en passant square */
 	token = strtok_r(nullptr, " ", &saveptr);
@@ -174,6 +208,7 @@ void pos_print(const struct position *pos)
 	       pos->st->castle & 4 ? 'K' : '-', pos->st->castle & 1 ? 'Q' : '-',
 	       pos->st->castle & 8 ? 'k' : '-',
 	       pos->st->castle & 2 ? 'q' : '-');
+	printf("    Key:            %016lX\n", pos->key);
 }
 
 void pos_do_move(struct position *pos, enum move m)
@@ -270,7 +305,10 @@ void pos_undo_move(struct position *pos, enum move m)
 
 	if (captured != NO_PIECE)
 		add_piece(pos, captured, to);
-
+	pos->key ^= zobrist.castle[pos->st->castle];
+	pos->key ^= zobrist.castle[st->castle];
+	if (st->enpas != SQ_NONE)
+		pos->key ^= zobrist.enpassant[SQ_FILE(st->enpas)];
 	pos->st = st;
 
 	pos->game_ply--;
