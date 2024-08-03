@@ -83,6 +83,9 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	struct move_picker mp;
 	int movecount = 0;
 
+	ss->move = MOVE_NONE;
+	*ss->pv = MOVE_NONE;
+
 	if (!isroot) {
 		if (!depth) {
 			/* don't enter quiescence in check */
