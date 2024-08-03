@@ -56,7 +56,7 @@ enum move *pawn_moves(enum mg_type mt, enum move *move_list,
 	enum square to;
 
 	/* quiet moves */
-	if (mt != MGT_CAPTURES) {
+	if (mt != MGT_CAPTURES && mt != MGT_SPECIAL) {
 		b1 = bb_shift(pawns, up) & ~pos->piece[ALL_PIECES];
 		b2 = bb_shift(b1, up) & empty & rank4;
 		b1 &= target;
@@ -73,16 +73,18 @@ enum move *pawn_moves(enum mg_type mt, enum move *move_list,
 
 	/* captures */
 	if (mt != MGT_QUIET) {
-		b1 = bb_shift(pawns, upe) & enemies;
-		b2 = bb_shift(pawns, upw) & enemies;
+		if (mt != MGT_SPECIAL) {
+			b1 = bb_shift(pawns, upe) & enemies;
+			b2 = bb_shift(pawns, upw) & enemies;
 
-		while (b1) {
-			to = bb_poplsb(&b1);
-			*move_list++ = MAKE_MOVE(to - upe, to);
-		}
-		while (b2) {
-			to = bb_poplsb(&b2);
-			*move_list++ = MAKE_MOVE(to - upw, to);
+			while (b1) {
+				to = bb_poplsb(&b1);
+				*move_list++ = MAKE_MOVE(to - upe, to);
+			}
+			while (b2) {
+				to = bb_poplsb(&b2);
+				*move_list++ = MAKE_MOVE(to - upw, to);
+			}
 		}
 
 		if (pos->st->enpas != SQ_NONE) {
@@ -146,10 +148,12 @@ enum move *mg_generate(enum mg_type mt, enum move *move_list,
 	else if (mt != MGT_CAPTURES)
 		move_list = castle_moves(move_list, pos);
 	move_list = pawn_moves(mt, move_list, pos, target);
-	move_list = piece_moves(KNIGHT, move_list, pos, target);
-	move_list = piece_moves(BISHOP, move_list, pos, target);
-	move_list = piece_moves(ROOK, move_list, pos, target);
-	move_list = piece_moves(QUEEN, move_list, pos, target);
+	if (mt != MGT_SPECIAL) {
+		move_list = piece_moves(KNIGHT, move_list, pos, target);
+		move_list = piece_moves(BISHOP, move_list, pos, target);
+		move_list = piece_moves(ROOK, move_list, pos, target);
+		move_list = piece_moves(QUEEN, move_list, pos, target);
+	}
 
 	return move_list;
 }

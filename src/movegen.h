@@ -8,6 +8,7 @@ enum mg_type {
 	MGT_ALL,
 	MGT_CAPTURES,
 	MGT_QUIET,
+	MGT_SPECIAL,
 };
 
 enum move *mg_generate(enum mg_type mt, enum move *move_list,
