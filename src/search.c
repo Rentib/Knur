@@ -109,7 +109,10 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 
 	if (tt_probe(pos->key, depth, alpha, beta, &score, &hashmove)) {
 		/* tt cutoff */
-		/* TODO: */
+		if (!pvnode && pos_is_legal(pos, hashmove))
+			return IS_MATE(score)
+				 ? score < 0 ? score + ss->ply : score - ss->ply
+				 : score;
 	}
 
 	mp_init(&mp, pos, hashmove);
@@ -185,6 +188,9 @@ void *search(void *arg)
 		(ss + i)->ply = i;
 		(ss + i)->pv = ecalloc(MAX_PLY - i, sizeof(enum move));
 	}
+
+	/* clear transposition table */
+	tt_clear();
 
 	if (pthread_create(&manager, nullptr, time_manager, arg))
 		die("pthread_create:");
