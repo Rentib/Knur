@@ -343,6 +343,53 @@ bool pos_is_legal(const struct position *pos, enum move m)
 		 enemies);
 }
 
+bool pos_is_pseudo_legal(const struct position *pos, enum move m)
+{
+	enum square from = MOVE_FROM(m), to = MOVE_TO(m);
+	enum color us = pos->stm, them = !us;
+	enum piece pc = pos->board[from];
+	enum direction up = pos->stm == WHITE ? NORTH : SOUTH;
+
+	if (m == MOVE_NONE || !BB_TEST(pos->color[us], from) ||
+	    BB_TEST(pos->color[us], to))
+		return false;
+
+	if ((MOVE_TYPE(m) == MT_NORMAL) && (PIECE_TYPE(pc) != PAWN))
+		return BB_TEST(
+		    bb_attacks(PIECE_TYPE(pc), from, pos->piece[ALL_PIECES]) &
+			~pos->color[us],
+		    to);
+
+	if (PIECE_TYPE(pc) == PAWN) {
+		if (MOVE_TYPE(m) == MT_ENPASSANT)
+			return to == pos->st->enpas;
+		if (from + up == to)
+			return pos->board[to] == NO_PIECE;
+		if (MOVE_TYPE(m) == MT_NORMAL && from + 2 * up == to)
+			return pos->board[from + up] == NO_PIECE &&
+			       pos->board[to] == NO_PIECE;
+		if (from + up + WEST == to || from + up + EAST == to)
+			return BB_TEST(pos->color[them], to);
+	} else if ((PIECE_TYPE(pc) == KING && MOVE_TYPE(m) == MT_CASTLE) &&
+		   !(pos_attackers(pos, from) & pos->color[them])) {
+		if (from > to) {
+			return (pos->st->castle & (1 << us)) &&
+			       !(pos->piece[ALL_PIECES] &
+				 bb_between(from - 3, from - 1)) &&
+			       !(pos->color[them] &
+				 pos_attackers(pos, from + WEST));
+		} else if (from < to) {
+			return (pos->st->castle & (4 << us)) &&
+			       !(pos->piece[ALL_PIECES] &
+				 bb_between(from + 1, from + 2)) &&
+			       !(pos->color[them] &
+				 pos_attackers(pos, from + EAST));
+		}
+	}
+
+	return false;
+}
+
 u64 pos_attackers(const struct position *pos, enum square sq)
 {
 	return pos_attackers_occ(pos, sq, pos->piece[ALL_PIECES]);
