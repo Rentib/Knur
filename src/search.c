@@ -8,7 +8,6 @@
 
 #include "evaluate.h"
 #include "knur.h"
-#include "movegen.h"
 #include "movepicker.h"
 #include "position.h"
 #include "search.h"
@@ -42,7 +41,8 @@ static int quiescence(struct position *pos, struct search_stack *ss, int alpha,
 		      int beta)
 {
 	int score = evaluate(pos);
-	enum move move_list[256], *last, *m;
+	enum move move;
+	struct move_picker mp;
 
 	if (!running)
 		longjmp(jbuffer, 1);
@@ -53,16 +53,15 @@ static int quiescence(struct position *pos, struct search_stack *ss, int alpha,
 	if (score > alpha)
 		alpha = score;
 
-	last = mg_generate(MGT_CAPTURES, move_list, pos);
-
-	for (m = move_list; m != last; m++) {
-		if (!pos_is_legal(pos, *m))
+	mp_init(&mp, pos, MOVE_NONE);
+	while ((move = mp_next(&mp, pos, true)) != MOVE_NONE) {
+		if (!pos_is_legal(pos, move))
 			continue;
 
-		ss->move = *m;
-		pos_do_move(pos, *m);
+		ss->move = move;
+		pos_do_move(pos, move);
 		score = -quiescence(pos, ss, -beta, -alpha);
-		pos_undo_move(pos, *m);
+		pos_undo_move(pos, move);
 
 		if (score >= beta)
 			return beta;
@@ -116,7 +115,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	}
 
 	mp_init(&mp, pos, hashmove);
-	while ((move = mp_next(&mp, pos, false))) {
+	while ((move = mp_next(&mp, pos, false)) != MOVE_NONE) {
 		if (!pos_is_legal(pos, move))
 			continue;
 
