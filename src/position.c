@@ -106,6 +106,7 @@ void pos_set_fen(struct position *pos, const char *fen)
 	ARRAY_FILL(pos->color, 0);
 	ARRAY_FILL(pos->piece, 0);
 	ARRAY_FILL(pos->board, NO_PIECE);
+	ARRAY_FILL(pos->reps, 0);
 	pos->game_ply = 0;
 
 	pos->st = pos->state_stack;
@@ -173,6 +174,7 @@ void pos_set_fen(struct position *pos, const char *fen)
 
 	/* full move counter */
 	pos->game_ply = atoi(strtok_r(nullptr, " ", &saveptr));
+	pos->reps[pos->game_ply - 1] = pos->key;
 
 	/* additional information */
 	pos->st->checkers =
@@ -225,7 +227,6 @@ void pos_do_move(struct position *pos, enum move m)
 		st->fifty_rule = 0;
 	st->captured = captured;
 	pos->st = st;
-	pos->game_ply++;
 
 	if (captured != NO_PIECE)
 		del_piece(pos, captured, to);
@@ -263,6 +264,8 @@ void pos_do_move(struct position *pos, enum move m)
 
 	flip_stm(pos);
 	update_castle(pos, from, to);
+
+	pos->reps[pos->game_ply++] = pos->key;
 }
 
 void pos_undo_move(struct position *pos, enum move m)
@@ -312,6 +315,20 @@ void pos_undo_move(struct position *pos, enum move m)
 	pos->st = st;
 
 	pos->game_ply--;
+}
+
+bool pos_is_draw(const struct position *pos)
+{
+	int n = 1, i = pos->game_ply;
+
+	/* fifty move rule */
+	if (pos->st->fifty_rule >= 100)
+		return true;
+
+	/* 3-folr repetition */
+	while (i >= pos->game_ply - (int)pos->st->fifty_rule && n < 3)
+		n += pos->key == pos->reps[--i];
+	return n >= 3;
 }
 
 bool pos_is_legal(const struct position *pos, enum move m)

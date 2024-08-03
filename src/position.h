@@ -17,6 +17,7 @@ struct position {
 	u64 piece[PIECE_TYPE_NB];    /* [piece type] piece types' bitboards */
 	enum piece board[SQUARE_NB]; /* [square] piece on each square */
 	int game_ply;                /* game halfmove counter */
+	u64 reps[MAX_MOVES];         /* [game ply] repetition array */
 	u64 key;                     /* zobrist hash */
 
 	struct position_state state_stack[MAX_MOVES]; /* state stack */
@@ -31,6 +32,7 @@ void pos_print(const struct position *position);
 void pos_do_move(struct position *position, enum move move);
 void pos_undo_move(struct position *position, enum move move);
 
+bool pos_is_draw(const struct position *position);
 bool pos_is_legal(const struct position *position, enum move move);
 bool pos_is_pseudo_legal(const struct position *position, enum move move);
 
