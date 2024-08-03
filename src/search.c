@@ -100,6 +100,12 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 
 		if (pos_is_draw(pos))
 			return 0;
+
+		/* mate distance pruning */
+		alpha = MAX(MATED_IN(ss->ply), alpha);
+		beta = MIN(MATE_IN(ss->ply), beta);
+		if (alpha >= beta)
+			return alpha;
 	}
 
 	if (!running)
