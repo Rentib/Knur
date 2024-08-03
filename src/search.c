@@ -180,7 +180,7 @@ void *search(void *arg)
 	enum move bestmove;
 
 	if (maxdepth <= 0 || MAX_PLY <= maxdepth)
-		maxdepth = MAX_PLY;
+		maxdepth = MAX_PLY - 1;
 	nodes = 0;
 
 	/* initialize search stack */
