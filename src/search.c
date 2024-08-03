@@ -76,7 +76,8 @@ static int quiescence(struct position *pos, struct search_stack *ss, int alpha,
 int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	    int depth)
 {
-	int isroot = !ss->ply;
+	bool isroot = !ss->ply;
+	bool pvnode = beta - alpha != 1;
 	int score, bestscore = -CHECKMATE;
 	enum move move, bestmove = MOVE_NONE;
 	enum move hashmove = MOVE_NONE;
@@ -120,7 +121,18 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 
 		ss->move = move;
 		pos_do_move(pos, move);
-		score = -negamax(pos, ss + 1, -beta, -alpha, depth - 1);
+
+		/* principal variation search */
+		if (movecount == 1) {
+			score = -negamax(pos, ss + 1, -beta, -alpha, depth - 1);
+		} else {
+			score = -negamax(pos, ss + 1, -(alpha + 1), -alpha,
+					 depth - 1);
+			if (pvnode && score > alpha)
+				score = -negamax(pos, ss + 1, -beta, -alpha,
+						 depth - 1);
+		}
+
 		pos_undo_move(pos, move);
 
 		if (score <= bestscore)
