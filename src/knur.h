@@ -18,19 +18,20 @@ enum piece_type {
 
 /* clang-format off */
 enum piece {
-	WHITE_PAWN   =  0, BLACK_PAWN   = 1,
-	WHITE_KNIGHT =  4, BLACK_KNIGHT = 5,
-	WHITE_BISHOP =  8, BLACK_BISHOP = 9,
-	WHITE_ROOK   = 12, BLACK_ROOK   = 13,
-	WHITE_QUEEN  = 16, BLACK_QUEEN  = 17,
-	WHITE_KING   = 20, BLACK_KING   = 21,
-	NO_PIECE     = 26,
+	WHITE_PAWN,   BLACK_PAWN,
+	WHITE_KNIGHT, BLACK_KNIGHT,
+	WHITE_BISHOP, BLACK_BISHOP,
+	WHITE_ROOK,   BLACK_ROOK,
+	WHITE_QUEEN,  BLACK_QUEEN,
+	WHITE_KING,   BLACK_KING,
+	NO_PIECE,
+	PIECE_NB = 16,
 };
 /* clang-format on */
 
-#define PIECE_TYPE(piece)       ((piece) / 4)
-#define PIECE_COLOR(piece)      ((piece) % 4)
-#define PIECE_MAKE(type, color) ((type) * 4 + (color))
+#define PIECE_TYPE(piece)       ((piece) >> 1)
+#define PIECE_COLOR(piece)      ((piece) & 1)
+#define PIECE_MAKE(type, color) (((type) << 1) + (color))
 
 /* clang-format off */
 enum square {
