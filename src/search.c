@@ -94,6 +94,9 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 		/* end search or it might segfault */
 		if (ss->ply >= MAX_PLY - 1)
 			return pos->st->checkers ? 0 : evaluate(pos);
+
+		if (pos_is_draw(pos))
+			return 0;
 	}
 
 	if (!running)
