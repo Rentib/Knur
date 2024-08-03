@@ -12,6 +12,7 @@
 #include "movepicker.h"
 #include "position.h"
 #include "search.h"
+#include "transposition.h"
 #include "util.h"
 
 struct arg {
@@ -99,6 +100,11 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 		longjmp(jbuffer, 1);
 	nodes++;
 
+	if (tt_probe(pos->key, depth, alpha, beta, &score, &hashmove)) {
+		/* tt cutoff */
+		/* TODO: */
+	}
+
 	mp_init(&mp, pos, hashmove);
 	while ((move = mp_next(&mp, pos, false))) {
 		if (!pos_is_legal(pos, move))
@@ -130,6 +136,12 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 
 	if (!movecount)
 		bestscore = pos->st->checkers ? MATED_IN(ss->ply) : 0;
+
+	tt_store(pos->key, depth,
+		 bestscore <= alpha  ? TT_ALPHA
+		 : bestscore >= beta ? TT_BETA
+				     : TT_PV,
+		 bestscore, bestmove);
 
 	return bestscore;
 }
