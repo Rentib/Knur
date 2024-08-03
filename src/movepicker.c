@@ -24,6 +24,8 @@ enum move mp_next(struct move_picker *mp, struct position *pos, bool skip_quiet)
 	case MP_STAGE_CAPTURES:
 		while (mp->captures != mp->moves) {
 			bestmove = *--mp->captures;
+			if (bestmove == mp->hashmove)
+				continue;
 			return bestmove;
 		}
 		if (skip_quiet) {
@@ -41,6 +43,8 @@ enum move mp_next(struct move_picker *mp, struct position *pos, bool skip_quiet)
 	case MP_STAGE_QUIET:
 		while (!skip_quiet && mp->quiets != mp->captures) {
 			bestmove = *--mp->quiets;
+			if (bestmove == mp->hashmove)
+				continue;
 			return bestmove;
 		}
 		mp->stage = MP_STAGE_DONE;
