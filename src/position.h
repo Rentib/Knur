@@ -32,6 +32,12 @@ void pos_print(const struct position *position);
 void pos_do_move(struct position *position, enum move move);
 void pos_undo_move(struct position *position, enum move move);
 
+INLINE bool pos_is_quiet(const struct position *position, enum move move)
+{
+	return MOVE_TYPE(move) != MT_ENPASSANT &&
+	       position->board[MOVE_TO(move)] == NO_PIECE;
+}
+
 bool pos_is_draw(const struct position *position);
 bool pos_is_legal(const struct position *position, enum move move);
 bool pos_is_pseudo_legal(const struct position *position, enum move move);
