@@ -5,6 +5,7 @@
 
 #include "bitboards.h"
 #include "knur.h"
+#include "movegen.h"
 #include "position.h"
 #include "util.h"
 
@@ -366,51 +367,54 @@ bool pos_is_pseudo_legal(const struct position *pos, enum move m)
 	enum square from = MOVE_FROM(m), to = MOVE_TO(m),
 		    ksq = BB_TO_SQUARE(pos->piece[KING] & pos->color[us]);
 	enum piece pc = pos->board[from];
-	enum direction up = pos->stm == WHITE ? NORTH : SOUTH;
+	enum direction up = us == WHITE ? NORTH : SOUTH;
+	enum move move_list[256], *last;
 
-	if (m == MOVE_NONE || !BB_TEST(pos->color[us], from) ||
-	    BB_TEST(pos->color[us], to))
+	if (m == MOVE_NONE || pc == NO_PIECE || PIECE_COLOR(pc) != us ||
+	    BB_TEST(pos->piece[ALL_PIECES] & pos->color[us], to))
 		return false;
 
-	if (((bb_attacks(KNIGHT, ksq, 0) & pos->piece[KNIGHT]) |
-	     (bb_pawn_attacks(us, ksq) & pos->piece[PAWN])) &
-	    pos->color[them] & ~BB_FROM_SQUARE(to))
+	if (MOVE_TYPE(m) != MT_NORMAL) {
+		last = mg_generate(MGT_SPECIAL, move_list, pos);
+		while (last-- != move_list)
+			if (*last == m)
+				return true;
 		return false;
-
-	if ((MOVE_TYPE(m) == MT_NORMAL) && (PIECE_TYPE(pc) != PAWN))
-		return BB_TEST(
-		    bb_attacks(PIECE_TYPE(pc), from, pos->piece[ALL_PIECES]) &
-			~pos->color[us],
-		    to);
-
-	if (PIECE_TYPE(pc) == PAWN) {
-		if (MOVE_TYPE(m) == MT_ENPASSANT)
-			return to == pos->st->enpas;
-		if (from + up == to)
-			return pos->board[to] == NO_PIECE;
-		if (MOVE_TYPE(m) == MT_NORMAL && from + 2 * up == to)
-			return pos->board[from + up] == NO_PIECE &&
-			       pos->board[to] == NO_PIECE;
-		if (from + up + WEST == to || from + up + EAST == to)
-			return BB_TEST(pos->color[them], to);
-	} else if ((PIECE_TYPE(pc) == KING && MOVE_TYPE(m) == MT_CASTLE) &&
-		   !(pos_attackers(pos, from) & pos->color[them])) {
-		if (from > to) {
-			return (pos->st->castle & (1 << us)) &&
-			       !(pos->piece[ALL_PIECES] &
-				 bb_between(from - 3, from - 1)) &&
-			       !(pos->color[them] &
-				 pos_attackers(pos, from + WEST));
-		} else if (from < to) {
-			return (pos->st->castle & (4 << us)) &&
-			       !(pos->piece[ALL_PIECES] &
-				 bb_between(from + 1, from + 2)) &&
-			       !(pos->color[them] &
-				 pos_attackers(pos, from + EAST));
-		}
 	}
 
-	return false;
+	if (PIECE_TYPE(pc) == PAWN) {
+		if (SQ_RANK(to) == 0 || SQ_RANK(to) == 7)
+			return false;
+
+		if (!BB_TEST(bb_pawn_attacks(us, from) & pos->color[them],
+			     to) &&
+		    !(from + up == to && pos->board[to] == NO_PIECE) &&
+		    !(from + up * 2 == to &&
+		      pos->board[from + up * 1] == NO_PIECE &&
+		      pos->board[from + up * 2] == NO_PIECE &&
+		      (SQ_RANK(from) == 1 || SQ_RANK(from) == 6))) {
+			return false;
+		}
+	} else if (!BB_TEST(
+		       bb_attacks(PIECE_TYPE(pc), from, pos->piece[ALL_PIECES]),
+		       to))
+		return false;
+
+	if (pos->st->checkers) {
+		if (PIECE_TYPE(pc) != KING) {
+			if (BB_SEVERAL(pos->st->checkers))
+				return false;
+			if (!BB_TEST(bb_between(ksq, BB_LSB(pos->st->checkers)),
+				     to))
+				return false;
+		} else if (pos_attackers_occ(pos, to,
+					     pos->piece[ALL_PIECES] ^
+						 BB_FROM_SQUARE(from)) &
+			   pos->color[us])
+			return false;
+	}
+
+	return true;
 }
 
 u64 pos_attackers(const struct position *pos, enum square sq)
