@@ -3,13 +3,20 @@
 #include "movegen.h"
 #include "position.h"
 
-void mp_init(struct move_picker *mp) { mp->stage = MP_STAGE_GENERATE_CAPTURES; }
+void mp_init(struct move_picker *mp, struct position *pos, enum move hashmove)
+{
+	mp->stage = MP_STAGE_HASH + !pos_is_pseudo_legal(pos, hashmove);
+	mp->hashmove = hashmove;
+}
 
 enum move mp_next(struct move_picker *mp, struct position *pos, bool skip_quiet)
 {
 	enum move bestmove = MOVE_NONE;
 
 	switch (mp->stage) {
+	case MP_STAGE_HASH:
+		mp->stage = MP_STAGE_GENERATE_CAPTURES;
+		return mp->hashmove;
 	case MP_STAGE_GENERATE_CAPTURES:
 		mp->captures = mg_generate(MGT_CAPTURES, mp->moves, pos);
 		mp->stage = MP_STAGE_CAPTURES;

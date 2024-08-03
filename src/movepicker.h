@@ -5,6 +5,7 @@
 #include "position.h"
 
 enum mp_stage {
+	MP_STAGE_HASH,
 	MP_STAGE_GENERATE_CAPTURES,
 	MP_STAGE_CAPTURES,
 	MP_STAGE_GENERATE_QUIET,
@@ -17,9 +18,11 @@ struct move_picker {
 	int scores[256]; /* move scores */
 	enum move moves[256];
 	enum move *captures, *quiets;
+	enum move hashmove;
 };
 
-void mp_init(struct move_picker *mp);
+void mp_init(struct move_picker *mp, struct position *position,
+	     enum move hashmove);
 enum move mp_next(struct move_picker *mp, struct position *position,
 		  bool skip_quiet);
 

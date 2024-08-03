@@ -78,6 +78,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	int isroot = !ss->ply;
 	int score, bestscore = -CHECKMATE;
 	enum move move, bestmove = MOVE_NONE;
+	enum move hashmove = MOVE_NONE;
 	struct move_picker mp;
 	int movecount = 0;
 
@@ -98,7 +99,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 		longjmp(jbuffer, 1);
 	nodes++;
 
-	mp_init(&mp);
+	mp_init(&mp, pos, hashmove);
 	while ((move = mp_next(&mp, pos, false))) {
 		if (!pos_is_legal(pos, move))
 			continue;
