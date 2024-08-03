@@ -362,13 +362,19 @@ bool pos_is_legal(const struct position *pos, enum move m)
 
 bool pos_is_pseudo_legal(const struct position *pos, enum move m)
 {
-	enum square from = MOVE_FROM(m), to = MOVE_TO(m);
 	enum color us = pos->stm, them = !us;
+	enum square from = MOVE_FROM(m), to = MOVE_TO(m),
+		    ksq = BB_TO_SQUARE(pos->piece[KING] & pos->color[us]);
 	enum piece pc = pos->board[from];
 	enum direction up = pos->stm == WHITE ? NORTH : SOUTH;
 
 	if (m == MOVE_NONE || !BB_TEST(pos->color[us], from) ||
 	    BB_TEST(pos->color[us], to))
+		return false;
+
+	if (((bb_attacks(KNIGHT, ksq, 0) & pos->piece[KNIGHT]) |
+	     (bb_pawn_attacks(us, ksq) & pos->piece[PAWN])) &
+	    pos->color[them] & ~BB_FROM_SQUARE(to))
 		return false;
 
 	if ((MOVE_TYPE(m) == MT_NORMAL) && (PIECE_TYPE(pc) != PAWN))
