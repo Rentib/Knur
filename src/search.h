@@ -18,6 +18,13 @@ struct search_limits {
 	u64 start;
 };
 
+struct search_stack {
+	int ply;             /* halfmove counter */
+	enum move move;      /* current move */
+	enum move *pv;       /* principal variation */
+	enum move killer[2]; /* killer moves */
+};
+
 bool search_running(void);
 void search_start(struct position *position, struct search_limits *limits);
 void search_stop(void);

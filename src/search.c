@@ -19,12 +19,6 @@ struct arg {
 	struct search_limits *limits;
 };
 
-struct search_stack {
-	int ply;        /* halfmove counter */
-	enum move move; /* current move */
-	enum move *pv;  /* principal variation */
-};
-
 static int quiescence(struct position *position,
 		      struct search_stack *search_stack, int alpha, int beta);
 static int negamax(struct position *position, struct search_stack *search_stack,
@@ -53,7 +47,7 @@ static int quiescence(struct position *pos, struct search_stack *ss, int alpha,
 	if (score > alpha)
 		alpha = score;
 
-	mp_init(&mp, pos, MOVE_NONE);
+	mp_init(&mp, pos, MOVE_NONE, ss);
 	while ((move = mp_next(&mp, pos, true)) != MOVE_NONE) {
 		if (!pos_is_legal(pos, move))
 			continue;
@@ -120,7 +114,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 				 : score;
 	}
 
-	mp_init(&mp, pos, hashmove);
+	mp_init(&mp, pos, hashmove, ss);
 	while ((move = mp_next(&mp, pos, false)) != MOVE_NONE) {
 		if (!pos_is_legal(pos, move))
 			continue;
@@ -148,8 +142,16 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 		bestscore = score;
 		bestmove = move;
 
-		if (score >= beta)
+		if (score >= beta) {
+			if (pos_is_quiet(pos, move)) {
+				/* killer heuristic */
+				if (move != ss->killer[0]) {
+					ss->killer[1] = ss->killer[0];
+					ss->killer[0] = move;
+				}
+			}
 			break;
+		}
 
 		if (score > alpha) {
 			alpha = score;
@@ -192,6 +194,7 @@ void *search(void *arg)
 	for (i = 0; i < MAX_PLY; i++) {
 		(ss + i)->ply = i;
 		(ss + i)->pv = ecalloc(MAX_PLY - i, sizeof(enum move));
+		(ss + i)->killer[0] = (ss + i)->killer[1] = MOVE_NONE;
 	}
 
 	/* clear transposition table */
