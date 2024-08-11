@@ -245,7 +245,16 @@ static const struct eval pawn_blocked[2] = {
     {-7,  3 }
 }; // rank 6/7 pawns
 static const struct eval pawn_doubled = {-11, -51};
-static const int pawn_connected[8] = {0, 86, 54, 15, 7, 7, 3, 0};
+static const struct eval pawn_connected[8] = {
+    {0,  0 },
+    {86, 86},
+    {54, 54},
+    {15, 15},
+    {7,  7 },
+    {7,  7 },
+    {3,  3 },
+    {0,  0 }
+};
 static const struct eval pawn_isolated = {-1, -20};
 static const struct eval pawn_passed[8] = {
     {0,   0 },
@@ -257,15 +266,42 @@ static const struct eval pawn_passed[8] = {
     {2,   5 },
     {0,   0 }
 };
-static const struct eval pawn_center = {14, 0};
+static const struct eval pawn_center[6] = {
+    {0,  0},
+    {14, 0},
+    {22, 0},
+    {25, 0},
+    {21, 0},
+    {17, 0}
+};
 
-static const int knight_adj[] = {-10, -8, -6, -4, -2, 0, 2, 4, 8};
+static const struct eval knight_adj[] = {
+    {-10, -10},
+    {-8,  -8 },
+    {-6,  -6 },
+    {-4,  -4 },
+    {-2,  -2 },
+    {0,   0  },
+    {2,   2  },
+    {4,   4  },
+    {8,   8  }
+};
 static const struct eval knight_outpost = {54, 31};
 
 static const struct eval bishop_pair = {20, 40};
 
 static const struct eval rook_connected = {7, 15};
-static const int rook_adj[9] = {13, 12, 10, 7, 3, 0, -3, -6, -9};
+static const struct eval rook_adj[9] = {
+    {13, 13},
+    {12, 12},
+    {10, 10},
+    {7,  7 },
+    {3,  3 },
+    {0,  0 },
+    {-3, -3},
+    {-6, -6},
+    {-9, -9}
+};
 static const struct eval rook_open_file = {19, 24};
 static const struct eval rook_semiopen_file = {12, 23};
 static const struct eval rook_7th = {9, 16};
@@ -293,10 +329,8 @@ struct eval eval_pawns(const struct position *pos, const enum color side)
 	}
 
 	// center
-	eval.mg +=
-	    BB_POPCOUNT(mask_center_pawn & allied_pawns) * pawn_center.mg;
-	eval.eg +=
-	    BB_POPCOUNT(mask_center_pawn & allied_pawns) * pawn_center.eg;
+	mask = allied_pawns & mask_center_pawn;
+	eval = eval_add(eval, pawn_center[BB_POPCOUNT(mask)]);
 
 	for (mask = allied_pawns; mask;) {
 		sq = bb_poplsb(&mask);
@@ -323,10 +357,8 @@ struct eval eval_pawns(const struct position *pos, const enum color side)
 			eval = eval_add(eval, pawn_doubled);
 
 		// connected
-		if (phalanx | support) {
-			eval.mg += pawn_connected[SQ_RANK(sq)];
-			eval.eg += pawn_connected[SQ_RANK(sq)];
-		}
+		if (phalanx | support)
+			eval = eval_add(eval, pawn_connected[SQ_RANK(sq)]);
 
 		// isolated
 		else if (!neighbours)
@@ -366,8 +398,7 @@ static struct eval eval_knights(const struct position *pos,
 		eval = eval_add(eval, knight_pcsqt[sq]);
 
 		// decrease value as allied pawns disappear
-		eval.mg += knight_adj[pawn_cnt[side]];
-		eval.eg += knight_adj[pawn_cnt[side]];
+		eval = eval_add(eval, knight_adj[pawn_cnt[side]]);
 
 		if (bb_pawn_attacks(BLACK, sq) & allied_pawns) {
 			// knight defended by a pawn
@@ -473,8 +504,7 @@ static struct eval eval_rooks(const struct position *pos, const enum color side)
 		sq = bb_poplsb(&mask);
 
 		// increasing value as pawns disappear
-		eval.mg += rook_adj[pawn_cnt[side]];
-		eval.eg += rook_adj[pawn_cnt[side]];
+		eval = eval_add(eval, rook_adj[pawn_cnt[side]]);
 
 		// (semi) open file
 		if (!(mask_file[SQ_FILE(sq)] & pos->piece[PAWN]))
@@ -483,8 +513,8 @@ static struct eval eval_rooks(const struct position *pos, const enum color side)
 			eval = eval_add(eval, rook_semiopen_file);
 
 		// rook on 7th
-		if ((side == WHITE && 8 - SQ_FILE(sq) >= 7) ||
-		    (side == BLACK && 8 - SQ_FILE(sq) <= 2))
+		if ((side == WHITE && 8 - SQ_RANK(sq) >= 7) ||
+		    (side == BLACK && 8 - SQ_RANK(sq) <= 2))
 			eval = eval_add(eval, rook_7th);
 
 		// mobility
