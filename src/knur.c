@@ -13,6 +13,7 @@ int main(void)
 	evaluate_init();
 	pos_init();
 	tt_init(TT_DEFAULT_SIZE);
+	pht_init(4);
 
 	uci_loop();
 

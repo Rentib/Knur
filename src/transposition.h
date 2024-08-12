@@ -25,4 +25,12 @@ bool tt_probe(u64 key, int depth, int alpha, int beta, int *score,
 	      enum move *move);
 void tt_store(u64 key, int depth, enum tt_type type, int score, enum move move);
 
+void pht_init(size_t mb);
+void pht_free(void);
+void pht_clear(void);
+bool pht_probe(u64 key, u64 wpawns, u64 bpawns, int16_t *score_mg,
+	       int16_t *score_eg);
+void pht_store(u64 key, u64 wpawns, u64 bpawns, int16_t score_mg,
+	       int16_t score_eg);
+
 #endif /* KNUR_TRANSPOSITION_H_ */

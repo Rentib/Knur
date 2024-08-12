@@ -14,41 +14,52 @@ struct __attribute__((packed)) tt_entry {
 	enum move move;
 };
 
+struct __attribute__((packed)) pht_entry {
+	u64 wpawns : 48;
+	u64 bpawns : 48;
+	int16_t score_mg;
+	int16_t score_eg;
+};
+
 struct hash_table {
 	size_t size;
-	struct tt_entry *entries;
+	union {
+		struct tt_entry *tt_entries;
+		struct pht_entry *pht_entries;
+	};
 	unsigned shift;
 };
 
-static struct hash_table tt = {0, nullptr, 0};
+static struct hash_table tt = {0, {nullptr}, 0};
+static struct hash_table pht = {0, {nullptr}, 0};
 
 void tt_init(size_t mb)
 {
-	if (tt.entries == nullptr)
-		free(tt.entries);
+	if (tt.tt_entries != nullptr)
+		free(tt.tt_entries);
 
 	for (tt.size = 1;
 	     tt.size * 2 * sizeof(struct tt_entry) <= mb * MEBIBYTE;
 	     tt.size *= 2) {}
-	tt.entries = ecalloc(tt.size, sizeof(struct tt_entry));
+	tt.tt_entries = ecalloc(tt.size, sizeof(struct tt_entry));
 	tt.shift = 64 - __builtin_ctzll(tt.size);
 }
 
 void tt_free(void)
 {
-	free(tt.entries);
-	tt.entries = nullptr;
+	free(tt.tt_entries);
+	tt.tt_entries = nullptr;
 }
 
 void tt_clear(void)
 {
-	memset(tt.entries, 0, tt.size * sizeof(struct tt_entry));
+	memset(tt.tt_entries, 0, tt.size * sizeof(struct tt_entry));
 }
 
 bool tt_probe(u64 key, int depth, int alpha, int beta, int *score,
 	      enum move *move)
 {
-	struct tt_entry *et = &tt.entries[key >> tt.shift];
+	struct tt_entry *et = &tt.tt_entries[key >> tt.shift];
 
 	*score = UNKNOWN;
 	*move = MOVE_NONE;
@@ -69,7 +80,7 @@ bool tt_probe(u64 key, int depth, int alpha, int beta, int *score,
 
 void tt_store(u64 key, int depth, enum tt_type type, int score, enum move move)
 {
-	struct tt_entry *et = &tt.entries[key >> tt.shift];
+	struct tt_entry *et = &tt.tt_entries[key >> tt.shift];
 
 	if (et->key == key && et->depth > depth)
 		return;
@@ -79,4 +90,52 @@ void tt_store(u64 key, int depth, enum tt_type type, int score, enum move move)
 	et->type = type;
 	et->score = score;
 	et->move = move;
+}
+
+void pht_init(size_t mb)
+{
+	if (pht.pht_entries != nullptr)
+		free(pht.pht_entries);
+
+	for (pht.size = 1;
+	     pht.size * 2 * sizeof(struct pht_entry) <= mb * MEBIBYTE;
+	     pht.size *= 2) {}
+	pht.tt_entries = ecalloc(pht.size, sizeof(struct pht_entry));
+	pht.shift = 64 - __builtin_ctzll(pht.size);
+}
+
+void pht_free(void)
+{
+	free(pht.pht_entries);
+	pht.pht_entries = nullptr;
+}
+
+void pht_clear(void)
+{
+	memset(pht.pht_entries, 0, pht.size * sizeof(struct pht_entry));
+}
+
+bool pht_probe(u64 key, u64 wpawns, u64 bpawns, int16_t *score_mg,
+	       int16_t *score_eg)
+{
+	struct pht_entry *et = &pht.pht_entries[key >> pht.shift];
+
+	if (wpawns == et->wpawns << 8 && bpawns == et->bpawns << 8) {
+		*score_mg = et->score_mg;
+		*score_eg = et->score_eg;
+		return true;
+	}
+
+	return false;
+}
+
+void pht_store(u64 key, u64 wpawns, u64 bpawns, int16_t score_mg,
+	       int16_t score_eg)
+{
+	struct pht_entry *et = &pht.pht_entries[key >> pht.shift];
+
+	et->wpawns = wpawns >> 8;
+	et->bpawns = bpawns >> 8;
+	et->score_mg = score_mg;
+	et->score_eg = score_eg;
 }
