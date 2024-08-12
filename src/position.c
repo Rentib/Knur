@@ -410,7 +410,7 @@ bool pos_is_pseudo_legal(const struct position *pos, enum move m)
 		} else if (pos_attackers_occ(pos, to,
 					     pos->piece[ALL_PIECES] ^
 						 BB_FROM_SQUARE(from)) &
-			   pos->color[us])
+			   pos->color[them])
 			return false;
 	}
 
