@@ -13,11 +13,12 @@ int main(void)
 	evaluate_init();
 	pos_init();
 	tt_init(TT_DEFAULT_SIZE);
-	pht_init(4);
+	pht_init(2);
 
 	uci_loop();
 
 	tt_free();
+	pht_free();
 	bb_free();
 	return 0;
 }

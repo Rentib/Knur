@@ -2,6 +2,7 @@
 #include "bitboards.h"
 #include "knur.h"
 #include "position.h"
+#include "transposition.h"
 
 enum game_phase { GP_MG, GP_EG, GP_NB };
 
@@ -538,8 +539,15 @@ int evaluate(const struct position *pos)
 	pawn_cnt[WHITE] = BB_POPCOUNT(pos->piece[PAWN] & pos->color[WHITE]);
 	pawn_cnt[BLACK] = BB_POPCOUNT(pos->piece[PAWN] & pos->color[BLACK]);
 
-	eval = eval_add(eval, eval_pawns(pos, WHITE));
-	eval = eval_sub(eval, eval_pawns(pos, BLACK));
+	if (!pht_probe(pos->pawn_key, pos->color[WHITE] & pos->piece[PAWN],
+		       pos->color[BLACK] & pos->piece[PAWN], &eval.mg,
+		       &eval.eg)) {
+		eval = eval_add(eval, eval_pawns(pos, WHITE));
+		eval = eval_sub(eval, eval_pawns(pos, BLACK));
+		pht_store(pos->pawn_key, pos->color[WHITE] & pos->piece[PAWN],
+			  pos->color[BLACK] & pos->piece[PAWN], eval.mg,
+			  eval.eg);
+	}
 	eval = eval_add(eval, eval_knights(pos, WHITE));
 	eval = eval_sub(eval, eval_knights(pos, BLACK));
 	eval = eval_add(eval, eval_bishops(pos, WHITE));
