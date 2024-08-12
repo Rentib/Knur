@@ -48,5 +48,11 @@ bool pos_is_pseudo_legal(const struct position *position, enum move move);
 u64 pos_attackers(const struct position *position, enum square);
 u64 pos_attackers_occ(const struct position *position, enum square square,
 		      u64 occupancy);
+INLINE u64 pos_non_pawn(const struct position *position, enum color side)
+{
+	return (position->piece[ALL_PIECES] ^ position->piece[PAWN] ^
+		position->piece[KING]) &
+	       position->color[side];
+}
 
 #endif /* KNUR_POSITION_H_ */
