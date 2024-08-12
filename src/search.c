@@ -6,6 +6,7 @@
 #include <string.h>
 #include <threads.h>
 
+#include "bitboards.h"
 #include "evaluate.h"
 #include "knur.h"
 #include "movepicker.h"
@@ -75,10 +76,13 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	enum move move, bestmove = MOVE_NONE;
 	enum move hashmove = MOVE_NONE;
 	struct move_picker mp;
+	int R;
 	int movecount = 0;
 
 	ss->move = MOVE_NONE;
 	*ss->pv = MOVE_NONE;
+
+	depth = MAX(depth, 0);
 
 	if (!isroot) {
 		if (!depth) {
@@ -112,6 +116,19 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 			return IS_MATE(score)
 				 ? score < 0 ? score + ss->ply : score - ss->ply
 				 : score;
+	}
+
+	// null move pruning (~70 elo)
+	if (!pvnode && !pos->st->checkers && (ss - 1)->move != MOVE_NULL &&
+	    depth >= 4 && pos_non_pawn(pos, pos->stm)) {
+		R = 3 + (depth >= 8 && BB_SEVERAL(pos_non_pawn(pos, pos->stm)));
+		ss->move = MOVE_NULL;
+		pos_do_null_move(pos);
+		score = -negamax(pos, ss + 1, -beta, -alpha, depth - R - 1);
+		pos_undo_null_move(pos);
+
+		if (score >= beta)
+			return score;
 	}
 
 	mp_init(&mp, pos, hashmove, ss);
