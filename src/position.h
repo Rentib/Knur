@@ -19,6 +19,7 @@ struct position {
 	int game_ply;                /* game halfmove counter */
 	u64 reps[MAX_MOVES];         /* [game ply] repetition array */
 	u64 key;                     /* zobrist hash */
+	u64 pawn_key;                /* zobrist hash for pawns */
 
 	struct position_state state_stack[MAX_MOVES]; /* state stack */
 	struct position_state *st;                    /* state of position */
