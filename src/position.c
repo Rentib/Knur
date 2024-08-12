@@ -318,6 +318,35 @@ void pos_undo_move(struct position *pos, enum move m)
 	pos->game_ply--;
 }
 
+void pos_do_null_move(struct position *pos)
+{
+	struct position_state *st = pos->st + 1;
+
+	*st = *(pos->st);
+	st->fifty_rule++;
+	pos->st = st;
+
+	del_enpas(pos);
+
+	pos->st->checkers = 0;
+	flip_stm(pos);
+
+	pos->reps[pos->game_ply++] = pos->key;
+}
+
+void pos_undo_null_move(struct position *pos)
+{
+	flip_stm(pos);
+
+	struct position_state *st = pos->st - 1;
+
+	if (st->enpas != SQ_NONE)
+		pos->key ^= zobrist.enpassant[SQ_FILE(st->enpas)];
+	pos->st = st;
+
+	pos->game_ply--;
+}
+
 bool pos_is_draw(const struct position *pos)
 {
 	int n = 1, i = pos->game_ply;

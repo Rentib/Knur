@@ -32,6 +32,9 @@ void pos_print(const struct position *position);
 void pos_do_move(struct position *position, enum move move);
 void pos_undo_move(struct position *position, enum move move);
 
+void pos_do_null_move(struct position *position);
+void pos_undo_null_move(struct position *position);
+
 INLINE bool pos_is_quiet(const struct position *position, enum move move)
 {
 	return MOVE_TYPE(move) != MT_ENPASSANT &&
