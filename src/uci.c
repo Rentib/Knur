@@ -7,6 +7,7 @@
 #include "perft.h"
 #include "position.h"
 #include "search.h"
+#include "transposition.h"
 #include "uci.h"
 #include "util.h"
 
@@ -53,6 +54,8 @@ void uci([[maybe_unused]] struct position *pos, [[maybe_unused]] char *fmt)
 	printf("id name Knur\n");
 	printf("id author Stanisław Bitner\n");
 	/*printf("option name ...");*/
+	printf("option name Hash type spin default %d min %d max %d\n",
+	       TT_DEFAULT_SIZE, TT_MIN_SIZE, TT_MAX_SIZE);
 	printf("uciok\n");
 }
 
@@ -61,11 +64,17 @@ void isready([[maybe_unused]] struct position *pos, [[maybe_unused]] char *fmt)
 	printf("readyok\n");
 }
 
-void setoption([[maybe_unused]] struct position *pos,
-	       [[maybe_unused]] char *fmt)
+void setoption([[maybe_unused]] struct position *pos, char *fmt)
 {
+	int x;
 	if (search_running())
 		return;
+
+	if (!strncmp("setoption name Hash value ", fmt, 26)) {
+		sscanf(fmt, "%*s %*s %*s %*s %d", &x);
+		tt_init(x);
+		printf("info string set Hash to value %d\n", x);
+	}
 }
 
 void ucinewgame(struct position *pos, [[maybe_unused]] char *fmt)
