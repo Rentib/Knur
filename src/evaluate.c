@@ -4,10 +4,8 @@
 #include "position.h"
 #include "transposition.h"
 
-enum game_phase { GP_MG, GP_EG, GP_NB };
-
 struct eval_params eval_params = {
-    .piece_value = {100, 300, 315, 500, 900, 20000},
+    .piece_value = {101, 299, 316, 497, 901, 20000},
 
     /* clang-format off */
     .pawn_pcsqt = {0},
@@ -45,48 +43,48 @@ struct eval_params eval_params = {
     },
     /* clang-format on */
 
-    .pawn_backward = {-6, -19},
-    .pawn_blocked = {{-19, -8}, {-7, 3}},
-    .pawn_doubled = {-11, -51},
+    .pawn_backward = {-7, -16},
+    .pawn_blocked = {{-19, -9}, {-8, 3}},
+    .pawn_doubled = {-10, -50},
     .pawn_connected =
-	{{0, 0}, {86, 86}, {54, 54}, {15, 15}, {7, 7}, {7, 7}, {3, 3}, {0, 0}},
-    .pawn_isolated = {-1, -20},
+	{{0, 0}, {85, 86}, {54, 54}, {15, 14}, {5, 7}, {8, 7}, {5, 2}, {0, 0}},
+    .pawn_isolated = {-1, -16},
     .pawn_passed = {{0, 0},
-		    {113, 94},
-		    {51, 65},
-		    {22, 30},
-		    {8, 15},
+		    {114, 93},
+		    {53, 65},
+		    {22, 32},
+		    {6, 18},
 		    {5, 8},
-		    {2, 5},
+		    {1, 5},
 		    {0, 0}},
-    .pawn_center = {{0, 0}, {14, 0}, {22, 0}, {25, 0}, {21, 0}, {17, 0}},
+    .pawn_center = {{-1, 1}, {13, -1}, {20, 0}, {27, -1}, {22, 2}, {18, -2}},
 
-    .knight_adj = {{-10, -10},
+    .knight_adj = {{-9, -11},
 		    {-8, -8},
-		    {-6, -6},
+		    {-5, -7},
 		    {-4, -4},
-		    {-2, -2},
-		    {0, 0},
-		    {2, 2},
-		    {4, 4},
-		    {8, 8}},
+		    {-1, -3},
+		    {2, 0},
+		    {0, 1},
+		    {3, 4},
+		    {10, 6}},
     .knight_outpost = {54, 31},
 
-    .bishop_pair = {20, 40},
+    .bishop_pair = {20, 41},
 
-    .rook_connected = {7, 15},
-    .rook_adj = {{13, 13},
-		    {12, 12},
-		    {10, 10},
-		    {7, 7},
-		    {3, 3},
-		    {0, 0},
-		    {-3, -3},
-		    {-6, -6},
+    .rook_connected = {8, 15},
+    .rook_adj = {{15, 14},
+		    {13, 10},
+		    {9, 9},
+		    {8, 5},
+		    {2, 4},
+		    {0, -1},
+		    {-4, -4},
+		    {-7, -6},
 		    {-9, -9}},
-    .rook_open_file = {19, 24},
-    .rook_semiopen_file = {12, 23},
-    .rook_7th = {9, 16},
+    .rook_open_file = {20, 23},
+    .rook_semiopen_file = {11, 24},
+    .rook_7th = {8, 17},
 };
 static struct eval_params *ep = &eval_params;
 
