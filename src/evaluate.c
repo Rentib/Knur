@@ -6,10 +6,89 @@
 
 enum game_phase { GP_MG, GP_EG, GP_NB };
 
-struct eval {
-	int16_t mg;
-	int16_t eg;
+struct eval_params eval_params = {
+    .piece_value = {100, 300, 315, 500, 900, 20000},
+
+    /* clang-format off */
+    .pawn_pcsqt = {0},
+    .knight_pcsqt = {
+	    {-15, -25}, {0, 0},  {0, 0},  {0, 0},  {0, 0},  {0, 0},  {0, 0},  {-15, -25},
+	    {-10, -20}, {0, 0},  {0, 0},  {0, 0},  {0, 0},  {0, 0},  {0, 0},  {-10, -20},
+	    {-10, -20}, {0, 0},  {10, 0}, {10, 0}, {10, 0}, {10, 0}, {0, 0},  {-10, -20},
+	    {-10, -20}, {5, 0},  {10, 0}, {20, 0}, {20, 0}, {10, 0}, {5, 0},  {-10, -20},
+	    {-10, -20}, {5, 0},  {10, 0}, {20, 0}, {20, 0}, {10, 0}, {5, 0},  {-10, -20},
+	    {-10, -20}, {0, 0},  {10, 0}, {5, 0},  {5, 0},  {10, 0}, {0, 0},  {-10, -20},
+	    {-10, -20}, {0, 0},  {0, 0},  {0, 0},  {0, 0},  {0, 0},  {0, 0},  {-10, -20},
+	    {-15, -25}, {-6, 0}, {0, 0},  {0, 0},  {0, 0},  {0, 0},  {-8, 0}, {-15, -25},
+    },
+    .bishop_pcsqt = {
+	    {0, 0}, {0, 0},  {0, 0},  {0, 0},  {0, 0},  {0, 0},  {0, 0},  {0, 0},
+	    {0, 0}, {0, 5},  {0, 5},  {0, 5},  {0, 5},  {0, 5},  {0, 5},  {0, 0},
+	    {0, 0}, {0, 5},  {0, 9},  {0, 9},  {0, 9},  {0, 9},  {0, 5},  {0, 0},
+	    {0, 0}, {18, 5}, {0, 9},  {0, 9},  {0, 9},  {0, 9},  {18, 5}, {0, 0},
+	    {0, 0}, {0, 5},  {20, 9}, {20, 9}, {20, 9}, {20, 9}, {0, 5},  {0, 0},
+	    {5, 0}, {0, 5},  {7, 9},  {10, 9}, {10, 9}, {7, 9},  {0, 5},  {5, 0},
+	    {0, 0}, {10, 5}, {0, 5},  {7, 5},  {7, 5},  {0, 5},  {10, 5}, {0, 0},
+	    {0, 0}, {0, 0},  {-6, 0}, {0, 0},  {0, 0},  {-8, 0}, {0, 0},  {0, 0},
+    },
+    .rook_pcsqt = {0},
+    .queen_pcsqt = {0},
+    .king_pcsqt = {
+	    {-10, -50}, {-10, -20}, {-10, -20}, {-10, -20}, {-10, -20}, {-10, -20}, {-10, -20}, {-10, -50},
+	    {-10, -10}, {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, -10},
+	    {-10, -10}, {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, -10},
+	    {-10, -10}, {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, -10},
+	    {-10, -10}, {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, -10},
+	    {-10, -10}, {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, -10},
+	    {-10, -10}, {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, 0},   {-10, -10},
+	    {10, -50},  {20, -20},  {20, -20},  {-10, -20}, {0, -20},   {-10, -20}, {20, -20},  {20, -50},
+    },
+    /* clang-format on */
+
+    .pawn_backward = {-6, -19},
+    .pawn_blocked = {{-19, -8}, {-7, 3}},
+    .pawn_doubled = {-11, -51},
+    .pawn_connected =
+	{{0, 0}, {86, 86}, {54, 54}, {15, 15}, {7, 7}, {7, 7}, {3, 3}, {0, 0}},
+    .pawn_isolated = {-1, -20},
+    .pawn_passed = {{0, 0},
+		    {113, 94},
+		    {51, 65},
+		    {22, 30},
+		    {8, 15},
+		    {5, 8},
+		    {2, 5},
+		    {0, 0}},
+    .pawn_center = {{0, 0}, {14, 0}, {22, 0}, {25, 0}, {21, 0}, {17, 0}},
+
+    .knight_adj = {{-10, -10},
+		    {-8, -8},
+		    {-6, -6},
+		    {-4, -4},
+		    {-2, -2},
+		    {0, 0},
+		    {2, 2},
+		    {4, 4},
+		    {8, 8}},
+    .knight_outpost = {54, 31},
+
+    .bishop_pair = {20, 40},
+
+    .rook_connected = {7, 15},
+    .rook_adj = {{13, 13},
+		    {12, 12},
+		    {10, 10},
+		    {7, 7},
+		    {3, 3},
+		    {0, 0},
+		    {-3, -3},
+		    {-6, -6},
+		    {-9, -9}},
+    .rook_open_file = {19, 24},
+    .rook_semiopen_file = {12, 23},
+    .rook_7th = {9, 16},
 };
+static struct eval_params *ep = &eval_params;
 
 INLINE struct eval eval_add(struct eval lhs, struct eval rhs)
 {
@@ -36,277 +115,6 @@ static struct eval eval_bishops(const struct position *position,
 static struct eval eval_rooks(const struct position *position,
 			      const enum color side);
 
-//{{{ Piece enum square Tables
-static const struct eval knight_pcsqt[64] = {
-    {-15, -25},
-    {0,   0  },
-    {0,   0  },
-    {0,   0  },
-    {0,   0  },
-    {0,   0  },
-    {0,   0  },
-    {-15, -25},
-    {-10, -20},
-    {0,   0  },
-    {0,   0  },
-    {0,   0  },
-    {0,   0  },
-    {0,   0  },
-    {0,   0  },
-    {-10, -20},
-    {-10, -20},
-    {0,   0  },
-    {10,  0  },
-    {10,  0  },
-    {10,  0  },
-    {10,  0  },
-    {0,   0  },
-    {-10, -20},
-    {-10, -20},
-    {5,   0  },
-    {10,  0  },
-    {20,  0  },
-    {20,  0  },
-    {10,  0  },
-    {5,   0  },
-    {-10, -20},
-    {-10, -20},
-    {5,   0  },
-    {10,  0  },
-    {20,  0  },
-    {20,  0  },
-    {10,  0  },
-    {5,   0  },
-    {-10, -20},
-    {-10, -20},
-    {0,   0  },
-    {10,  0  },
-    {5,   0  },
-    {5,   0  },
-    {10,  0  },
-    {0,   0  },
-    {-10, -20},
-    {-10, -20},
-    {0,   0  },
-    {0,   0  },
-    {0,   0  },
-    {0,   0  },
-    {0,   0  },
-    {0,   0  },
-    {-10, -20},
-    {-15, -25},
-    {-6,  0  },
-    {0,   0  },
-    {0,   0  },
-    {0,   0  },
-    {0,   0  },
-    {-8,  0  },
-    {-15, -25},
-};
-
-static const struct eval bishop_pcsqt[64] = {
-    {0,  0},
-    {0,  0},
-    {0,  0},
-    {0,  0},
-    {0,  0},
-    {0,  0},
-    {0,  0},
-    {0,  0},
-    {0,  0},
-    {0,  5},
-    {0,  5},
-    {0,  5},
-    {0,  5},
-    {0,  5},
-    {0,  5},
-    {0,  0},
-    {0,  0},
-    {0,  5},
-    {0,  9},
-    {0,  9},
-    {0,  9},
-    {0,  9},
-    {0,  5},
-    {0,  0},
-    {0,  0},
-    {18, 5},
-    {0,  9},
-    {0,  9},
-    {0,  9},
-    {0,  9},
-    {18, 5},
-    {0,  0},
-    {0,  0},
-    {0,  5},
-    {20, 9},
-    {20, 9},
-    {20, 9},
-    {20, 9},
-    {0,  5},
-    {0,  0},
-    {5,  0},
-    {0,  5},
-    {7,  9},
-    {10, 9},
-    {10, 9},
-    {7,  9},
-    {0,  5},
-    {5,  0},
-    {0,  0},
-    {10, 5},
-    {0,  5},
-    {7,  5},
-    {7,  5},
-    {0,  5},
-    {10, 5},
-    {0,  0},
-    {0,  0},
-    {0,  0},
-    {-6, 0},
-    {0,  0},
-    {0,  0},
-    {-8, 0},
-    {0,  0},
-    {0,  0},
-};
-
-static const struct eval king_pcsqt[64] = {
-    {-10, -50},
-    {-10, -20},
-    {-10, -20},
-    {-10, -20},
-    {-10, -20},
-    {-10, -20},
-    {-10, -20},
-    {-10, -50},
-    {-10, -10},
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, -10},
-    {-10, -10},
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, -10},
-    {-10, -10},
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, -10},
-    {-10, -10},
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, -10},
-    {-10, -10},
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, -10},
-    {-10, -10},
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, 0  },
-    {-10, -10},
-    {10,  -50},
-    {20,  -20},
-    {20,  -20},
-    {-10, -20},
-    {0,   -20},
-    {-10, -20},
-    {20,  -20},
-    {20,  -50},
-};
-// }}}
-
-/* bonuses in centipawns */
-static const struct eval pawn_backward = {-6, -19};
-static const struct eval pawn_blocked[2] = {
-    {-19, -8},
-    {-7,  3 }
-}; // rank 6/7 pawns
-static const struct eval pawn_doubled = {-11, -51};
-static const struct eval pawn_connected[8] = {
-    {0,  0 },
-    {86, 86},
-    {54, 54},
-    {15, 15},
-    {7,  7 },
-    {7,  7 },
-    {3,  3 },
-    {0,  0 }
-};
-static const struct eval pawn_isolated = {-1, -20};
-static const struct eval pawn_passed[8] = {
-    {0,   0 },
-    {113, 94},
-    {51,  65},
-    {22,  30},
-    {8,   15},
-    {5,   8 },
-    {2,   5 },
-    {0,   0 }
-};
-static const struct eval pawn_center[6] = {
-    {0,  0},
-    {14, 0},
-    {22, 0},
-    {25, 0},
-    {21, 0},
-    {17, 0}
-};
-
-static const struct eval knight_adj[] = {
-    {-10, -10},
-    {-8,  -8 },
-    {-6,  -6 },
-    {-4,  -4 },
-    {-2,  -2 },
-    {0,   0  },
-    {2,   2  },
-    {4,   4  },
-    {8,   8  }
-};
-static const struct eval knight_outpost = {54, 31};
-
-static const struct eval bishop_pair = {20, 40};
-
-static const struct eval rook_connected = {7, 15};
-static const struct eval rook_adj[9] = {
-    {13, 13},
-    {12, 12},
-    {10, 10},
-    {7,  7 },
-    {3,  3 },
-    {0,  0 },
-    {-3, -3},
-    {-6, -6},
-    {-9, -9}
-};
-static const struct eval rook_open_file = {19, 24};
-static const struct eval rook_semiopen_file = {12, 23};
-static const struct eval rook_7th = {9, 16};
-
 static u64 mask_rank[8];
 static u64 mask_file[8];
 static u64 mask_adj_file[8];
@@ -331,7 +139,7 @@ struct eval eval_pawns(const struct position *pos, const enum color side)
 
 	// center
 	mask = allied_pawns & mask_center_pawn;
-	eval = eval_add(eval, pawn_center[BB_POPCOUNT(mask)]);
+	eval = eval_add(eval, ep->pawn_center[BB_POPCOUNT(mask)]);
 
 	for (mask = allied_pawns; mask;) {
 		sq = bb_poplsb(&mask);
@@ -347,29 +155,30 @@ struct eval eval_pawns(const struct position *pos, const enum color side)
 		// backward
 		if (!(neighbours & (~BB_RANK_8 << 8 * SQ_RANK(sq)) &&
 		      (blocked | lever_push)))
-			eval = eval_add(eval, pawn_backward);
+			eval = eval_add(eval, ep->pawn_backward);
 
 		// blocked
 		if (blocked && sq <= SQ_H5)
-			eval = eval_add(eval, pawn_blocked[SQ_RANK(sq) - 2]);
+			eval =
+			    eval_add(eval, ep->pawn_blocked[SQ_RANK(sq) - 2]);
 
 		// doubled
 		if (allied_pawns & BB_FROM_SQUARE(sq + SOUTH))
-			eval = eval_add(eval, pawn_doubled);
+			eval = eval_add(eval, ep->pawn_doubled);
 
 		// connected
 		if (phalanx | support)
-			eval = eval_add(eval, pawn_connected[SQ_RANK(sq)]);
+			eval = eval_add(eval, ep->pawn_connected[SQ_RANK(sq)]);
 
 		// isolated
 		else if (!neighbours)
-			eval = eval_add(eval, pawn_isolated);
+			eval = eval_add(eval, ep->pawn_isolated);
 
 		// passed
 		if (!(lever ^ stoppers) ||
 		    (!(stoppers ^ lever_push) &&
 		     BB_POPCOUNT(phalanx) >= BB_POPCOUNT(lever_push)))
-			eval = eval_add(eval, pawn_passed[SQ_RANK(sq)]);
+			eval = eval_add(eval, ep->pawn_passed[SQ_RANK(sq)]);
 	}
 
 	return eval;
@@ -396,12 +205,13 @@ static struct eval eval_knights(const struct position *pos,
 		sq = bb_poplsb(&mask);
 
 		// piece square table
-		eval = eval_add(eval, knight_pcsqt[sq]);
+		eval = eval_add(eval, ep->knight_pcsqt[sq]);
 
 		// decrease value as allied pawns disappear
-		eval = eval_add(eval, knight_adj[pawn_cnt[side]]);
+		eval = eval_add(eval, ep->knight_adj[pawn_cnt[side]]);
 
 		if (bb_pawn_attacks(BLACK, sq) & allied_pawns) {
+			// TODO: add to eval_params
 			// knight defended by a pawn
 			eval.mg += 1;
 			eval.eg += 1;
@@ -410,9 +220,10 @@ static struct eval eval_knights(const struct position *pos,
 			     (SQ_C4 <= sq && sq <= SQ_F4)) &&
 			    !(enemy_pawns & mask_passed[sq] &
 			      mask_adj_file[SQ_FILE(sq)]))
-				eval = eval_add(eval, knight_outpost);
+				eval = eval_add(eval, ep->knight_outpost);
 		}
 
+		// TODO: add to eval_params
 		// mobility
 		eval.mg +=
 		    BB_POPCOUNT(bb_attacks(KNIGHT, sq, 0) &
@@ -452,14 +263,15 @@ static struct eval eval_bishops(const struct position *pos,
 
 	// bishop pair
 	if (BB_SEVERAL(mask))
-		eval = eval_add(eval, bishop_pair);
+		eval = eval_add(eval, ep->bishop_pair);
 
 	for (; mask;) {
 		sq = bb_poplsb(&mask);
 
 		// piece square table
-		eval = eval_add(eval, bishop_pcsqt[sq]);
+		eval = eval_add(eval, ep->bishop_pcsqt[sq]);
 
+		// TODO: add to eval_params
 		// bad bishop
 		if (sq % 2 == 0) {
 			eval.mg -= BB_POPCOUNT(allied_pawns & BB_WHITE_SQUARES);
@@ -469,6 +281,7 @@ static struct eval eval_bishops(const struct position *pos,
 			eval.eg -= BB_POPCOUNT(allied_pawns & BB_BLACK_SQUARES);
 		}
 
+		// TODO: add to eval_params
 		// mobility
 		eval.mg +=
 		    BB_POPCOUNT(bb_attacks(BISHOP, sq, ~occ) & ~allies) * 2;
@@ -497,7 +310,7 @@ static struct eval eval_rooks(const struct position *pos, const enum color side)
 	if (BB_SEVERAL(mask)) {
 		sq = bb_poplsb(&mask);
 		if (bb_attacks(ROOK, sq, pos->piece[ALL_PIECES]) & mask)
-			eval = eval_add(eval, rook_connected);
+			eval = eval_add(eval, ep->rook_connected);
 	}
 	mask = allies & pos->piece[ROOK];
 
@@ -505,19 +318,20 @@ static struct eval eval_rooks(const struct position *pos, const enum color side)
 		sq = bb_poplsb(&mask);
 
 		// increasing value as pawns disappear
-		eval = eval_add(eval, rook_adj[pawn_cnt[side]]);
+		eval = eval_add(eval, ep->rook_adj[pawn_cnt[side]]);
 
 		// (semi) open file
 		if (!(mask_file[SQ_FILE(sq)] & pos->piece[PAWN]))
-			eval = eval_add(eval, rook_open_file);
+			eval = eval_add(eval, ep->rook_open_file);
 		else if (!(mask_file[SQ_FILE(sq)] & pos->piece[PAWN] & allies))
-			eval = eval_add(eval, rook_semiopen_file);
+			eval = eval_add(eval, ep->rook_semiopen_file);
 
 		// rook on 7th
 		if ((side == WHITE && 8 - SQ_RANK(sq) >= 7) ||
 		    (side == BLACK && 8 - SQ_RANK(sq) <= 2))
-			eval = eval_add(eval, rook_7th);
+			eval = eval_add(eval, ep->rook_7th);
 
+		// TODO: add to eval_params
 		// mobility
 		eval.mg +=
 		    BB_POPCOUNT(bb_attacks(ROOK, sq, pos->piece[ALL_PIECES]));
@@ -533,6 +347,7 @@ static struct eval eval_rooks(const struct position *pos, const enum color side)
 int evaluate(const struct position *pos)
 {
 	int score, phase;
+	enum piece_type pt;
 	struct eval eval = {0};
 	enum square ksq[COLOR_NB];
 
@@ -557,8 +372,8 @@ int evaluate(const struct position *pos)
 
 	ksq[WHITE] = BB_TO_SQUARE(pos->color[WHITE] & pos->piece[KING]);
 	ksq[BLACK] = BB_TO_SQUARE(pos->color[BLACK] & pos->piece[KING]);
-	eval = eval_add(eval, king_pcsqt[ksq[WHITE]]);
-	eval = eval_sub(eval, king_pcsqt[SQ_FLIP(ksq[BLACK])]);
+	eval = eval_add(eval, ep->king_pcsqt[ksq[WHITE]]);
+	eval = eval_sub(eval, ep->king_pcsqt[SQ_FLIP(ksq[BLACK])]);
 
 	phase = 24;
 	phase -= BB_POPCOUNT(pos->piece[PAWN]) * 0;
@@ -571,18 +386,11 @@ int evaluate(const struct position *pos)
 	score = ((eval.mg * (256 - phase)) + (eval.eg * phase)) / 256;
 
 	/* material */
-	score += 100 * BB_POPCOUNT(pos->color[WHITE] & pos->piece[PAWN]);
-	score -= 100 * BB_POPCOUNT(pos->color[BLACK] & pos->piece[PAWN]);
-	score += 300 * BB_POPCOUNT(pos->color[WHITE] & pos->piece[KNIGHT]);
-	score -= 300 * BB_POPCOUNT(pos->color[BLACK] & pos->piece[KNIGHT]);
-	score += 315 * BB_POPCOUNT(pos->color[WHITE] & pos->piece[BISHOP]);
-	score -= 315 * BB_POPCOUNT(pos->color[BLACK] & pos->piece[BISHOP]);
-	score += 500 * BB_POPCOUNT(pos->color[WHITE] & pos->piece[ROOK]);
-	score -= 500 * BB_POPCOUNT(pos->color[BLACK] & pos->piece[ROOK]);
-	score += 900 * BB_POPCOUNT(pos->color[WHITE] & pos->piece[QUEEN]);
-	score -= 900 * BB_POPCOUNT(pos->color[BLACK] & pos->piece[QUEEN]);
-	score += 20000 * BB_POPCOUNT(pos->color[WHITE] & pos->piece[KING]);
-	score -= 20000 * BB_POPCOUNT(pos->color[BLACK] & pos->piece[KING]);
+	for (pt = PAWN; pt <= KING; pt++) {
+		score += ep->piece_value[pt] *
+			 (BB_POPCOUNT(pos->color[WHITE] & pos->piece[pt]) -
+			  BB_POPCOUNT(pos->color[BLACK] & pos->piece[pt]));
+	}
 
 	return pos->stm == WHITE ? score : -score;
 }
