@@ -112,13 +112,14 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 
 	if (tt_probe(pos->key, depth, alpha, beta, &score, &hashmove)) {
 		/* tt cutoff */
-		if (!pvnode && pos_is_legal(pos, hashmove))
+		if (!pvnode && pos_is_pseudo_legal(pos, hashmove) &&
+		    pos_is_legal(pos, hashmove))
 			return IS_MATE(score)
 				 ? score < 0 ? score + ss->ply : score - ss->ply
 				 : score;
 	}
 
-	// null move pruning (~70 elo)
+	/* null move pruning (~70 elo) */
 	if (!pvnode && !pos->st->checkers && (ss - 1)->move != MOVE_NULL &&
 	    depth >= 4 && pos_non_pawn(pos, pos->stm)) {
 		R = 3 + (depth >= 8 && BB_SEVERAL(pos_non_pawn(pos, pos->stm)));
@@ -222,6 +223,7 @@ void *search(void *arg)
 	if (pthread_detach(manager))
 		die("pthread_detach:");
 
+	/* iterative deepening */
 	for (depth = 1; depth <= maxdepth; depth++) {
 		if (setjmp(jbuffer))
 			break;
