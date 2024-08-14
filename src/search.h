@@ -25,8 +25,17 @@ struct search_stack {
 	enum move killer[2]; /* killer moves */
 };
 
+struct search_params {
+	int window_depth;
+	int window_size;
+
+	int nmp_depth;
+};
+
 bool search_running(void);
 void search_start(struct position *position, struct search_limits *limits);
 void search_stop(void);
+
+extern struct search_params search_params;
 
 #endif /* KNUR_SEARCH_H_ */

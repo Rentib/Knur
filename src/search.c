@@ -27,6 +27,14 @@ static int negamax(struct position *position, struct search_stack *search_stack,
 static void *search(void *arg);
 static void *time_manager(void *arg);
 
+struct search_params search_params = {
+    .window_depth = 4,
+    .window_size = 24,
+
+    .nmp_depth = 3,
+};
+static struct search_params *sp = &search_params;
+
 static u64 nodes;
 static atomic_bool running = false, thrd_joined = true;
 static pthread_t thrd;
@@ -121,7 +129,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 
 	/* null move pruning (~70 elo) */
 	if (!pvnode && !pos->st->checkers && (ss - 1)->move != MOVE_NULL &&
-	    depth >= 4 && pos_non_pawn(pos, pos->stm)) {
+	    depth >= sp->nmp_depth && pos_non_pawn(pos, pos->stm)) {
 		R = 3 + (depth >= 8 && BB_SEVERAL(pos_non_pawn(pos, pos->stm)));
 		ss->move = MOVE_NULL;
 		pos_do_null_move(pos);
@@ -203,6 +211,7 @@ void *search(void *arg)
 	int maxdepth = limits->depth;
 	int i, depth, score;
 	enum move bestmove;
+	int alpha = -CHECKMATE, beta = CHECKMATE, window;
 
 	if (maxdepth <= 0 || MAX_PLY <= maxdepth)
 		maxdepth = MAX_PLY - 1;
@@ -228,7 +237,25 @@ void *search(void *arg)
 		if (setjmp(jbuffer))
 			break;
 
-		score = negamax(pos, ss, -CHECKMATE, CHECKMATE, depth);
+		window = sp->window_size;
+		if (depth >= sp->window_depth) {
+			alpha = MAX(-CHECKMATE, score + window);
+			beta = MIN(CHECKMATE, score - window);
+		}
+
+		while (true) {
+			score = negamax(pos, ss, alpha, beta, depth);
+			if (score <= alpha) {
+				beta = (alpha + beta) / 2;
+				alpha = MAX(-CHECKMATE, alpha - window);
+			} else if (score >= beta) {
+				beta = MIN(CHECKMATE, beta - window);
+			} else {
+				break;
+			}
+			window = window + window / 2;
+		}
+
 		bestmove = *ss->pv;
 
 		printf("info depth %d ", depth);
