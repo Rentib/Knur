@@ -20,6 +20,7 @@ struct search_limits {
 
 struct search_stack {
 	int ply;             /* halfmove counter */
+	int eval;            /* static evaluation */
 	enum move move;      /* current move */
 	enum move *pv;       /* principal variation */
 	enum move killer[2]; /* killer moves */
@@ -28,7 +29,8 @@ struct search_stack {
 struct search_params {
 	int window_depth;
 	int window_size;
-
+	int rfp_depth;
+	int rfp_margin;
 	int nmp_depth;
 };
 

@@ -29,8 +29,9 @@ static void *time_manager(void *arg);
 
 struct search_params search_params = {
     .window_depth = 4,
-    .window_size = 24,
-
+    .window_size = 25,
+    .rfp_depth = 3,
+    .rfp_margin = 47,
     .nmp_depth = 3,
 };
 static struct search_params *sp = &search_params;
@@ -80,12 +81,12 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 {
 	bool isroot = !ss->ply;
 	bool pvnode = beta - alpha != 1;
+	bool in_check = !!pos->st->checkers, improving;
 	int score, bestscore = -CHECKMATE;
 	enum move move, bestmove = MOVE_NONE;
 	enum move hashmove = MOVE_NONE;
 	struct move_picker mp;
-	int R;
-	int movecount = 0;
+	int eval, R, movecount = 0;
 
 	ss->move = MOVE_NONE;
 	*ss->pv = MOVE_NONE;
@@ -95,14 +96,14 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	if (!isroot) {
 		if (!depth) {
 			/* don't enter quiescence in check */
-			if (!pos->st->checkers)
+			if (!in_check)
 				return quiescence(pos, ss, alpha, beta);
 			depth = 1;
 		}
 
 		/* end search or it might segfault */
 		if (ss->ply >= MAX_PLY - 1)
-			return pos->st->checkers ? 0 : evaluate(pos);
+			return in_check ? 0 : evaluate(pos);
 
 		if (pos_is_draw(pos))
 			return 0;
@@ -127,8 +128,16 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 				 : score;
 	}
 
+	eval = ss->eval = in_check ? UNKNOWN : evaluate(pos);
+	improving = in_check && eval > (ss - 2)->eval;
+
+	/* reverse futility pruning (~127 elo) */
+	if (!pvnode && !in_check && depth <= sp->rfp_depth &&
+	    eval - sp->rfp_margin * MAX(0, depth - improving) >= beta)
+		return eval;
+
 	/* null move pruning (~70 elo) */
-	if (!pvnode && !pos->st->checkers && (ss - 1)->move != MOVE_NULL &&
+	if (!pvnode && !in_check && (ss - 1)->move != MOVE_NULL &&
 	    depth >= sp->nmp_depth && pos_non_pawn(pos, pos->stm)) {
 		R = 3 + (depth >= 8 && BB_SEVERAL(pos_non_pawn(pos, pos->stm)));
 		ss->move = MOVE_NULL;
@@ -189,7 +198,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	}
 
 	if (!movecount)
-		bestscore = pos->st->checkers ? MATED_IN(ss->ply) : 0;
+		bestscore = in_check ? MATED_IN(ss->ply) : 0;
 
 	tt_store(pos->key, depth,
 		 bestscore <= alpha  ? TT_ALPHA
@@ -218,6 +227,10 @@ void *search(void *arg)
 	nodes = 0;
 
 	/* initialize search stack */
+	ss[-2] = ss[-1] = (struct search_stack){
+	    .eval = UNKNOWN,
+	    .move = MOVE_NONE,
+	};
 	for (i = 0; i < MAX_PLY; i++) {
 		(ss + i)->ply = i;
 		(ss + i)->pv = ecalloc(MAX_PLY - i, sizeof(enum move));
