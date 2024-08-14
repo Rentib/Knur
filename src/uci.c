@@ -18,7 +18,8 @@ struct parser {
 
 /* helper functions */
 static void readline(char *input);
-enum move parse_move(struct position *position, char *move_str);
+static enum move parse_move(struct position *position, char *move_str);
+static bool is_prefix(const char *str, const char *pref);
 
 /* uci functions */
 static void uci(struct position *position, char *fmt);
@@ -51,11 +52,14 @@ static bool running;
 
 void uci([[maybe_unused]] struct position *pos, [[maybe_unused]] char *fmt)
 {
+	char *spin = "option name %s type spin default %d min %d max %d\n";
+
 	printf("id name Knur\n");
 	printf("id author Stanisław Bitner\n");
+
 	/*printf("option name ...");*/
-	printf("option name Hash type spin default %d min %d max %d\n",
-	       TT_DEFAULT_SIZE, TT_MIN_SIZE, TT_MAX_SIZE);
+	printf(spin, "Hash", TT_DEFAULT_SIZE, TT_MIN_SIZE, TT_MAX_SIZE);
+
 	printf("uciok\n");
 }
 
@@ -66,11 +70,12 @@ void isready([[maybe_unused]] struct position *pos, [[maybe_unused]] char *fmt)
 
 void setoption([[maybe_unused]] struct position *pos, char *fmt)
 {
+#define OPT_VAL(id) "setoption name " #id " value "
 	int x;
 	if (search_running())
 		return;
 
-	if (!strncmp("setoption name Hash value ", fmt, 26)) {
+	if (is_prefix(fmt, OPT_VAL(Hash))) {
 		sscanf(fmt, "%*s %*s %*s %*s %d", &x);
 		tt_init(x);
 		printf("info string set Hash to value %d\n", x);
@@ -232,4 +237,9 @@ enum move parse_move(struct position *pos, char *move_str)
 			return *m;
 	}
 	return MOVE_NONE;
+}
+
+bool is_prefix(const char *str, const char *pref)
+{
+	return !strncmp(str, pref, strlen(pref));
 }
