@@ -91,16 +91,28 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	ss->move = MOVE_NONE;
 	*ss->pv = MOVE_NONE;
 
-	depth = MAX(depth, 0);
+	/* Quiescence Search.
+	 * Perform a search using only tactical moves to reach a more stable
+	 * position and avoid the horizon effect.
+	 */
+	if (depth <= 0) {
+		/* don't enter quiescence in check */
+		if (!in_check)
+			return quiescence(pos, ss, alpha, beta);
+		depth = 1;
+	}
 
+	/* Abort Search.
+	 * Exit if time is up or the program has been stopped by a UCI command.
+	 */
+	if (!running)
+		longjmp(jbuffer, 1);
+	nodes++;
+
+	/* Check for early exit conditions.
+	 * Do not exit in the root as we would possibly not get any best move.
+	 */
 	if (!isroot) {
-		if (!depth) {
-			/* don't enter quiescence in check */
-			if (!in_check)
-				return quiescence(pos, ss, alpha, beta);
-			depth = 1;
-		}
-
 		/* end search or it might segfault */
 		if (ss->ply >= MAX_PLY - 1)
 			return in_check ? 0 : evaluate(pos);
@@ -108,17 +120,19 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 		if (pos_is_draw(pos))
 			return 0;
 
-		/* mate distance pruning */
+		/* Mate Distance Pruning.
+		 * Line is either so good or so bad that it can't get any more
+		 * extreme.
+		 */
 		alpha = MAX(MATED_IN(ss->ply), alpha);
 		beta = MIN(MATE_IN(ss->ply), beta);
 		if (alpha >= beta)
 			return alpha;
 	}
 
-	if (!running)
-		longjmp(jbuffer, 1);
-	nodes++;
-
+	/* Probe the Transposition Table.
+	 * Get the hashmove and possibly get a TT cutoff.
+	 */
 	if (tt_probe(pos->key, depth, alpha, beta, &score, &hashmove)) {
 		/* tt cutoff */
 		if (!pvnode && pos_is_pseudo_legal(pos, hashmove) &&
@@ -131,12 +145,17 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	eval = ss->eval = in_check ? UNKNOWN : evaluate(pos);
 	improving = in_check && eval > (ss - 2)->eval;
 
-	/* reverse futility pruning (~127 elo) */
+	/* Reverse Futility Pruning (~107 elo).
+	 * Eval is so high that we assume that it won't get below beta.
+	 */
 	if (!pvnode && !in_check && depth <= sp->rfp_depth &&
 	    eval - sp->rfp_margin * MAX(0, depth - improving) >= beta)
 		return eval;
 
-	/* null move pruning (~70 elo) */
+	/* Null Move Pruning (~133 elo).
+	 * Position is so good that we can give the enemy a free move and still
+	 * be winning.
+	 */
 	if (!pvnode && !in_check && (ss - 1)->move != MOVE_NULL &&
 	    depth >= sp->nmp_depth && pos_non_pawn(pos, pos->stm)) {
 		R = 3 + (depth >= 8 && BB_SEVERAL(pos_non_pawn(pos, pos->stm)));
@@ -159,7 +178,9 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 		ss->move = move;
 		pos_do_move(pos, move);
 
-		/* principal variation search */
+		/* Principal Variation Search.
+		 * Do zero window search for moves other than the "best" one.
+		 */
 		if (movecount == 1) {
 			score = -negamax(pos, ss + 1, -beta, -alpha, depth - 1);
 		} else {
@@ -200,6 +221,10 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	if (!movecount)
 		bestscore = in_check ? MATED_IN(ss->ply) : 0;
 
+	/* Store results in the Transposition Table.
+	 * Store the hashmove and the score for the position at the current
+	 * depth.
+	 */
 	tt_store(pos->key, depth,
 		 bestscore <= alpha  ? TT_ALPHA
 		 : bestscore >= beta ? TT_BETA
