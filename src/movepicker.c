@@ -70,7 +70,7 @@ void sort_moves(struct move_picker *mp, enum move *begin, enum move *end)
 	for (mit = begin + 1; mit < end; mit++, sit++) {
 		mtmp = *mit;
 		stmp = *sit;
-		for (m = mit, s = sit; m != begin && s[-1] > *s; m--, s--) {
+		for (m = mit, s = sit; m != begin && s[-1] > stmp; m--, s--) {
 			*m = m[-1];
 			*s = s[-1];
 		}
