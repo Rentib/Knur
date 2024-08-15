@@ -11,6 +11,7 @@ enum mp_stage {
 	MP_STAGE_GOOD_CAPTURES,
 	MP_STAGE_KILLER1,
 	MP_STAGE_KILLER2,
+	MP_STAGE_COUNTER,
 	MP_STAGE_GENERATE_QUIET,
 	MP_STAGE_QUIET,
 	MP_STAGE_BAD_CAPTURES,
@@ -24,10 +25,12 @@ struct move_picker {
 	enum move *captures, *quiets;
 	enum move hashmove;
 	enum move killer[2];
+	enum move counter;
 };
 
 void mp_init(struct move_picker *mp, struct position *position,
-	     enum move hashmove, struct search_stack *search_stack);
+	     enum move hashmove, struct search_stack *search_stack,
+	     enum move counter);
 enum move mp_next(struct move_picker *mp, struct position *position,
 		  bool skip_quiet);
 

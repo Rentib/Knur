@@ -40,6 +40,7 @@ static u64 nodes;
 static atomic_bool running = false, thrd_joined = true;
 static pthread_t thrd;
 static jmp_buf jbuffer;
+static enum move counters[12][SQUARE_NB];
 
 static int quiescence(struct position *pos, struct search_stack *ss, int alpha,
 		      int beta)
@@ -57,7 +58,7 @@ static int quiescence(struct position *pos, struct search_stack *ss, int alpha,
 	if (score > alpha)
 		alpha = score;
 
-	mp_init(&mp, pos, MOVE_NONE, ss);
+	mp_init(&mp, pos, MOVE_NONE, ss, MOVE_NONE);
 	while ((move = mp_next(&mp, pos, true)) != MOVE_NONE) {
 		if (!pos_is_legal(pos, move))
 			continue;
@@ -87,6 +88,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	enum move hashmove = MOVE_NONE;
 	struct move_picker mp;
 	int eval, R, movecount = 0;
+	enum square prev_to;
 
 	ss->move = MOVE_NONE;
 	*ss->pv = MOVE_NONE;
@@ -144,6 +146,9 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 
 	eval = ss->eval = in_check ? UNKNOWN : evaluate(pos);
 	improving = in_check && eval > (ss - 2)->eval;
+	prev_to = (ss - 1)->move != MOVE_NONE && (ss - 1)->move != MOVE_NULL
+		    ? MOVE_TO((ss - 1)->move)
+		    : SQ_NONE;
 
 	/* Reverse Futility Pruning (~107 elo).
 	 * Eval is so high that we assume that it won't get below beta.
@@ -168,7 +173,9 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 			return score;
 	}
 
-	mp_init(&mp, pos, hashmove, ss);
+	mp_init(&mp, pos, hashmove, ss,
+		prev_to == SQ_NONE ? MOVE_NONE
+				   : counters[pos->board[prev_to]][prev_to]);
 	while ((move = mp_next(&mp, pos, false)) != MOVE_NONE) {
 		if (!pos_is_legal(pos, move))
 			continue;
@@ -205,6 +212,9 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 					ss->killer[1] = ss->killer[0];
 					ss->killer[0] = move;
 				}
+
+				/* countermove heuristic */
+				counters[pos->board[prev_to]][prev_to] = move;
 			}
 			break;
 		}
@@ -250,6 +260,7 @@ void *search(void *arg)
 	if (maxdepth <= 0 || MAX_PLY <= maxdepth)
 		maxdepth = MAX_PLY - 1;
 	nodes = 0;
+	memset(counters, MOVE_NONE, sizeof(counters));
 
 	/* initialize search stack */
 	ss[-2] = ss[-1] = (struct search_stack){

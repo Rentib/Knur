@@ -80,12 +80,13 @@ void sort_moves(struct move_picker *mp, enum move *begin, enum move *end)
 }
 
 void mp_init(struct move_picker *mp, struct position *pos, enum move hashmove,
-	     struct search_stack *ss)
+	     struct search_stack *ss, enum move counter)
 {
 	mp->stage = MP_STAGE_HASH + !pos_is_pseudo_legal(pos, hashmove);
 	mp->hashmove = hashmove;
 	mp->killer[0] = ss->killer[0];
 	mp->killer[1] = ss->killer[1];
+	mp->counter = counter;
 }
 
 enum move mp_next(struct move_picker *mp, struct position *pos, bool skip_quiet)
@@ -118,13 +119,23 @@ enum move mp_next(struct move_picker *mp, struct position *pos, bool skip_quiet)
 		[[fallthrough]];
 	case MP_STAGE_KILLER1:
 		mp->stage = MP_STAGE_KILLER2;
-		if (!skip_quiet && pos_is_pseudo_legal(pos, mp->killer[0]))
+		if (!skip_quiet && mp->killer[0] != mp->hashmove &&
+		    pos_is_pseudo_legal(pos, mp->killer[0]))
 			return mp->killer[0];
 		[[fallthrough]];
 	case MP_STAGE_KILLER2:
-		mp->stage = MP_STAGE_GENERATE_QUIET;
-		if (!skip_quiet && pos_is_pseudo_legal(pos, mp->killer[1]))
+		mp->stage = MP_STAGE_COUNTER;
+		if (!skip_quiet && mp->killer[1] != mp->hashmove &&
+		    pos_is_pseudo_legal(pos, mp->killer[1]))
 			return mp->killer[1];
+		[[fallthrough]];
+	case MP_STAGE_COUNTER:
+		mp->stage = MP_STAGE_GENERATE_QUIET;
+		if (!skip_quiet && mp->counter != mp->hashmove &&
+		    mp->counter != mp->killer[0] &&
+		    mp->counter != mp->killer[1] &&
+		    pos_is_pseudo_legal(pos, mp->counter))
+			return mp->counter;
 		[[fallthrough]];
 	case MP_STAGE_GENERATE_QUIET:
 		if (!skip_quiet) {
@@ -137,7 +148,8 @@ enum move mp_next(struct move_picker *mp, struct position *pos, bool skip_quiet)
 			bestmove = *--mp->quiets;
 			if (bestmove == mp->hashmove ||
 			    bestmove == mp->killer[0] ||
-			    bestmove == mp->killer[1])
+			    bestmove == mp->killer[1] ||
+			    bestmove == mp->counter)
 				continue;
 			return bestmove;
 		}
