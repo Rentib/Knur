@@ -13,6 +13,11 @@ all: CFLAGS += -march=native -m64 -mpopcnt
 all: CFLAGS += -mbmi2 -DUSE_PEXT
 all: knur
 
+tune: CFLAGS += -DTUNE
+tune: LDFLAGS += -ljson-c
+tune: REQ += tuner
+tune: all
+
 debug: CFLAGS += -O0 -ggdb
 debug: knur
 
