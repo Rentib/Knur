@@ -10,6 +10,7 @@ REQ = bitboards evaluate movegen movepicker perft position search transposition 
 
 all: CFLAGS += -O3 -ffast-math
 all: CFLAGS += -march=native -m64 -mpopcnt
+all: CFLAGS += -mbmi2 -DUSE_PEXT
 all: knur
 
 debug: CFLAGS += -O0 -ggdb

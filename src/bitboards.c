@@ -1,6 +1,9 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef USE_PEXT
+#include <immintrin.h>
+#endif
 
 #include "bitboards.h"
 #include "knur.h"
@@ -9,8 +12,10 @@
 #define MAGIC(magic, occupancy) (magic.attacks[magic_hash(&magic, occupancy)])
 
 struct magic {
-	u64 relevant;   /* relevant occupancy bits */
-	u64 magic;      /* magic number */
+	u64 relevant; /* relevant occupancy bits */
+#ifndef USE_PEXT
+	u64 magic; /* magic number */
+#endif
 	u64 *attacks;   /* attacks for different occupancy masks */
 	unsigned shift; /* right shift */
 };
@@ -30,9 +35,13 @@ static u64 get_state(u64 bitboard, unsigned state);
 
 INLINE unsigned magic_hash(struct magic *m, u64 occ)
 {
+#ifdef USE_PEXT
+	return _pext_u64(occ, m->relevant);
+#else
 	occ &= m->relevant;
 	occ *= m->magic;
 	return occ >> (64 - m->shift);
+#endif
 }
 
 static u64 between[SQUARE_NB][SQUARE_NB];     /* [square][square] */
@@ -143,10 +152,12 @@ void find_magic(enum piece_type pt, enum square sq)
 	}
 
 	for (i = 0, rndcnt = 1; i < size && rndcnt < 10000000; rndcnt++) {
+#ifndef USE_PEXT
 		m->magic = rand_sparse_u64();
 		if (BB_POPCOUNT((m->relevant * m->magic) &
 				0xFF00000000000000ULL) < 6)
 			continue;
+#endif
 		for (i = 0; i < size; i++) {
 			hash = magic_hash(m, occupancy[i]);
 			if (checked[hash] < rndcnt) {
