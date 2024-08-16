@@ -347,7 +347,7 @@ static void *time_manager(void *arg)
 
 	if (time == -1)
 		return nullptr;
-	movetime = time / movestogo + inc - 50;
+	movetime = time / movestogo + (movestogo > 1) * inc - 50;
 
 	thrd_sleep(&(struct timespec){.tv_sec = movetime / 1000,
 				      .tv_nsec = (movetime % 1000) * 1000000},
