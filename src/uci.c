@@ -32,8 +32,9 @@ static void stop(struct position *position, char *fmt);
 static void quit(struct position *position, char *fmt);
 
 /* non-uci functions */
-static void display(struct position *position, char *fmt);
+static void display_(struct position *position, char *fmt);
 static void perft_(struct position *position, char *fmt);
+static void eval_(struct position *position, char *fmt);
 
 static struct parser parser[] = {
     {"uci",        uci       },
@@ -44,8 +45,9 @@ static struct parser parser[] = {
     {"go",         go        },
     {"stop",       stop      },
     {"quit",       quit      },
-    {"d\0",        display   },
+    {"d\0",        display_  },
     {"perft",      perft_    },
+    {"eval",       eval_     },
 };
 
 static bool running;
@@ -179,7 +181,7 @@ void quit(struct position *pos, char *fmt)
 	running = false;
 }
 
-void display(struct position *pos, [[maybe_unused]] char *fmt)
+void display_(struct position *pos, [[maybe_unused]] char *fmt)
 {
 	pos_print(pos);
 }
@@ -187,6 +189,18 @@ void display(struct position *pos, [[maybe_unused]] char *fmt)
 void perft_(struct position *pos, char *fmt)
 {
 	perft(pos, atoi(fmt + strlen("perft")));
+}
+
+void eval_(struct position *pos, [[maybe_unused]] char *fmt)
+{
+	int score;
+
+	if (search_running())
+		return;
+
+	score = search_eval(pos);
+
+	printf("score cp %d\n", score);
 }
 
 void uci_loop(void)
