@@ -37,6 +37,7 @@ struct search_params {
 bool search_running(void);
 void search_start(struct position *position, struct search_limits *limits);
 void search_stop(void);
+int search_eval(struct position *position);
 
 extern struct search_params search_params;
 

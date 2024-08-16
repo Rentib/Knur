@@ -381,3 +381,29 @@ void search_stop(void)
 		pthread_join(thrd, nullptr);
 	thrd_joined = true;
 }
+
+int search_eval(struct position *pos)
+{
+	struct search_stack search_stack[MAX_PLY + 2] = {0};
+	struct search_stack *ss = search_stack + 2;
+	int score, i;
+
+	ss[-2] = ss[-1] = (struct search_stack){
+	    .eval = UNKNOWN,
+	    .move = MOVE_NONE,
+	};
+	for (i = 0; i < MAX_PLY; i++) {
+		(ss + i)->ply = i;
+		(ss + i)->pv = ecalloc(MAX_PLY - i, sizeof(enum move));
+		(ss + i)->killer[0] = (ss + i)->killer[1] = MOVE_NONE;
+	}
+
+	running = true;
+	score = quiescence(pos, ss, -CHECKMATE, CHECKMATE);
+	running = false;
+
+	for (i = 0; i < MAX_PLY; i++)
+		free((ss + i)->pv);
+
+	return score;
+}
