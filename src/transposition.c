@@ -17,8 +17,7 @@ struct __attribute__((packed)) tt_entry {
 struct __attribute__((packed)) pht_entry {
 	u64 wpawns : 48;
 	u64 bpawns : 48;
-	int16_t score_mg;
-	int16_t score_eg;
+	int score : 32;
 };
 
 struct hash_table {
@@ -115,27 +114,23 @@ void pht_clear(void)
 	memset(pht.pht_entries, 0, pht.size * sizeof(struct pht_entry));
 }
 
-bool pht_probe(u64 key, u64 wpawns, u64 bpawns, int16_t *score_mg,
-	       int16_t *score_eg)
+bool pht_probe(u64 key, u64 wpawns, u64 bpawns, int *score)
 {
 	struct pht_entry *et = &pht.pht_entries[key >> pht.shift];
 
 	if (wpawns == et->wpawns << 8 && bpawns == et->bpawns << 8) {
-		*score_mg = et->score_mg;
-		*score_eg = et->score_eg;
+		*score = et->score;
 		return true;
 	}
 
 	return false;
 }
 
-void pht_store(u64 key, u64 wpawns, u64 bpawns, int16_t score_mg,
-	       int16_t score_eg)
+void pht_store(u64 key, u64 wpawns, u64 bpawns, int score)
 {
 	struct pht_entry *et = &pht.pht_entries[key >> pht.shift];
 
 	et->wpawns = wpawns >> 8;
 	et->bpawns = bpawns >> 8;
-	et->score_mg = score_mg;
-	et->score_eg = score_eg;
+	et->score = score;
 }

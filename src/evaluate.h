@@ -3,39 +3,34 @@
 
 #include "position.h"
 
-struct eval {
-	int16_t mg;
-	int16_t eg;
-};
-
 struct eval_params {
 	int piece_value[PIECE_TYPE_NB];
 
-	struct eval pawn_pcsqt[64];
-	struct eval knight_pcsqt[64];
-	struct eval bishop_pcsqt[64];
-	struct eval rook_pcsqt[64];
-	struct eval queen_pcsqt[64];
-	struct eval king_pcsqt[64];
+	int pawn_pcsqt[64];
+	int knight_pcsqt[64];
+	int bishop_pcsqt[64];
+	int rook_pcsqt[64];
+	int queen_pcsqt[64];
+	int king_pcsqt[64];
 
-	struct eval pawn_backward;
-	struct eval pawn_blocked[2];
-	struct eval pawn_doubled;
-	struct eval pawn_connected[8];
-	struct eval pawn_isolated;
-	struct eval pawn_passed[8];
-	struct eval pawn_center[6];
+	int pawn_backward;
+	int pawn_blocked[2];
+	int pawn_doubled;
+	int pawn_connected[8];
+	int pawn_isolated;
+	int pawn_passed[8];
+	int pawn_center[6];
 
-	struct eval knight_adj[9];
-	struct eval knight_outpost;
+	int knight_adj[9];
+	int knight_outpost;
 
-	struct eval bishop_pair;
+	int bishop_pair;
 
-	struct eval rook_connected;
-	struct eval rook_adj[9];
-	struct eval rook_open_file;
-	struct eval rook_semiopen_file;
-	struct eval rook_7th;
+	int rook_connected;
+	int rook_adj[9];
+	int rook_open_file;
+	int rook_semiopen_file;
+	int rook_7th;
 };
 
 int evaluate(const struct position *position);
