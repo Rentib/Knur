@@ -9,9 +9,6 @@
 #include "position.h"
 #include "search.h"
 #include "transposition.h"
-#ifdef TUNE
-#include "tuner.h"
-#endif
 #include "uci.h"
 #include "util.h"
 
@@ -38,10 +35,6 @@ static void quit(struct position *position, char *fmt);
 /* non-uci functions */
 static void display_(struct position *position, char *fmt);
 static void perft_(struct position *position, char *fmt);
-static void eval_(struct position *position, char *fmt);
-#ifdef TUNE
-static void tune_(struct position *position, char *fmt);
-#endif
 
 static struct parser parser[] = {
     {"uci",        uci       },
@@ -54,10 +47,6 @@ static struct parser parser[] = {
     {"quit",       quit      },
     {"d\0",        display_  },
     {"perft",      perft_    },
-    {"eval",       eval_     },
-#ifdef TUNE
-    {"tune",       tune_     },
-#endif
 };
 
 static bool running;
@@ -200,38 +189,6 @@ void perft_(struct position *pos, char *fmt)
 {
 	perft(pos, atoi(fmt + strlen("perft")));
 }
-
-void eval_(struct position *pos, [[maybe_unused]] char *fmt)
-{
-	int score;
-
-	if (search_running())
-		return;
-
-	score = search_eval(pos);
-
-	printf("score cp %d\n", score);
-}
-
-#ifdef TUNE
-void tune_([[maybe_unused]] struct position *pos, char *fmt)
-{
-	char *s1, *s2;
-
-	if ((s1 = strstr(fmt, "get"))) {
-		if ((s2 = strstr(s1, "eval")))
-			tuner_eval_json();
-		else if ((s2 = strstr(s1, "search")))
-			tuner_search_json();
-	}
-	if ((s1 = strstr(fmt, "set"))) {
-		if ((s2 = strstr(s1, "eval")))
-			tuner_eval_set(s2 + strlen("eval") + 1);
-		else if ((s2 = strstr(s1, "search")))
-			tuner_search_set(s2 + strlen("search") + 1);
-	}
-}
-#endif
 
 void uci_loop(void)
 {
