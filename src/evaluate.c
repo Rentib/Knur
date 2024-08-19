@@ -121,7 +121,8 @@ struct eval_trace eval_trace;
 #else
 #define TRACE_RESET()
 #define TRACE_INC(field, color)
-#define TRACE_PHASE(val)
+#define TRACE_INC_VAL(field, color, val)
+#define TRACE_SET(field, val)
 #endif
 
 static int eval_pawns(const struct position *position, const enum color side);
