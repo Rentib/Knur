@@ -24,6 +24,14 @@ debug-thread: CFLAGS  += -fsanitize=thread
 debug-thread: LDFLAGS += -fsanitize=thread
 debug-thread: debug
 
+tune: CFLAGS += -DTUNE
+tune: CFLAGS += -O3 -ffast-math
+tune: CFLAGS += -march=native -m64 -mpopcnt
+tune: CFLAGS += -mbmi2 -DUSE_PEXT
+tune: LDFLAGS += -lm
+tune: tune.o $(REQ:=.o)
+	$(CC) -o $@ $(REQ:=.o) tune.o $(LDFLAGS)
+
 knur.o: knur.c knur.h $(REQ:=.h)
 
 .c.o:
@@ -33,4 +41,4 @@ knur: knur.o $(REQ:=.o)
 	$(CC) -o $@ $(REQ:=.o) knur.o $(LDFLAGS)
 
 clean:
-	rm -f knur knur.o $(REQ:=.o)
+	rm -f knur knur.o tune tune.o $(REQ:=.o)
