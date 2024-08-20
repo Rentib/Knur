@@ -102,6 +102,8 @@ void read_data(const char *filename, struct entry *entries)
 		pos_set_fen(pos, fen);
 		entries[i].result = atof(R_str);
 		entries[i].static_eval = evaluate(pos);
+		if (pos->stm == BLACK) /* white point of view */
+			entries[i].static_eval *= -1;
 		entries[i].trace = eval_trace;
 	}
 	fclose(fp);
