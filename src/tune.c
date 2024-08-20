@@ -1,5 +1,4 @@
 #include <math.h>
-#include <mm_malloc.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -14,13 +13,18 @@
 #define SMG(score) ((int16_t)((uint16_t)((unsigned)((score) + 0x0000) >> 00)))
 #define SEG(score) ((int16_t)((uint16_t)((unsigned)((score) + 0x8000) >> 16)))
 
-#define N (4219832)
+#define N (2577463)
 
 struct entry {
 	struct eval_trace trace;
 	double result;
 	double static_eval;
 };
+
+static void print_params(void);
+static void read_data(const char *filename, struct entry *entries);
+static double get_best_K(struct entry *entries);
+static void optimize(struct entry *entries, double K);
 
 void print_params(void)
 {
@@ -72,9 +76,11 @@ void print_params(void)
 	PARAM(eval_params, rook_semiopen_file);
 	PARAM(eval_params, rook_7th);
 	PARAM_ARRAY(eval_params, rook_mobility);
+
+	fflush(stdout);
 }
 
-static void read_data(const char *filename, struct entry *entries)
+void read_data(const char *filename, struct entry *entries)
 {
 	char buf[1024], *p;
 	unsigned i;
@@ -106,7 +112,7 @@ INLINE double sigmoid(double K, double s)
 	return 1.0 / (1.0 + exp(-K * s / 400.0));
 }
 
-INLINE double get_error(struct entry *entries, double K)
+INLINE long double get_error(struct entry *entries, double K)
 {
 	double E = 0;
 	unsigned i;
@@ -142,7 +148,7 @@ double get_best_K(struct entry *entries)
 }
 
 #if 0
-int trace_eval(struct eval_trace *trace)
+static int trace_eval(struct eval_trace *trace)
 {
 	int eval = 0;
 	struct eval_params *ep = &eval_params;
@@ -192,166 +198,108 @@ int trace_eval(struct eval_trace *trace)
 
 void optimize(struct entry *entries, double K)
 {
-#define UPDATE_VAL(field)                                                      \
-	do {                                                                   \
-		eval_params.field += S(1, 0);                                  \
-		for (et = entries; et - entries < N; et++) {                   \
-			eval = et->trace.eval;                                 \
-			eval += S(1 * (et->trace.field[WHITE] -                \
-				       et->trace.field[BLACK]),                \
-				  0);                                          \
-			phase = et->trace.phase;                               \
-			score = ((SMG(eval) * (256 - phase)) +                 \
-				 (SEG(eval) * phase)) /                        \
-				256;                                           \
-			et->static_eval = score;                               \
-			et->trace.eval = eval;                                 \
-		}                                                              \
-		E = get_error(entries, K);                                     \
-		if (E < bestE) {                                               \
-			bestE = E, improved = true;                            \
-		} else {                                                       \
-			eval_params.field -= S(2, 0);                          \
-			for (et = entries; et - entries < N; et++) {           \
-				eval = et->trace.eval;                         \
-				eval -= S(2 * (et->trace.field[WHITE] -        \
-					       et->trace.field[BLACK]),        \
-					  0);                                  \
-				phase = et->trace.phase;                       \
-				score = ((SMG(eval) * (256 - phase)) +         \
-					 (SEG(eval) * phase)) /                \
-					256;                                   \
-				et->static_eval = score;                       \
-				et->trace.eval = eval;                         \
-			}                                                      \
-			if (E < bestE) {                                       \
-				bestE = E, improved = true;                    \
-			} else {                                               \
-				eval_params.field += S(1, 0);                  \
-				for (et = entries; et - entries < N; et++) {   \
-					eval = et->trace.eval;                 \
-					eval +=                                \
-					    S(1 * (et->trace.field[WHITE] -    \
-						   et->trace.field[BLACK]),    \
-					      0);                              \
-					phase = et->trace.phase;               \
-					score = ((SMG(eval) * (256 - phase)) + \
-						 (SEG(eval) * phase)) /        \
-						256;                           \
-					et->static_eval = score;               \
-					et->trace.eval = eval;                 \
-				}                                              \
-			}                                                      \
-		}                                                              \
-		eval_params.field += S(0, 1);                                  \
-		for (et = entries; et - entries < N; et++) {                   \
-			eval = et->trace.eval;                                 \
-			eval += S(0, 1 * (et->trace.field[WHITE] -             \
-					  et->trace.field[BLACK]));            \
-			phase = et->trace.phase;                               \
-			score = ((SMG(eval) * (256 - phase)) +                 \
-				 (SEG(eval) * phase)) /                        \
-				256;                                           \
-			et->static_eval = score;                               \
-			et->trace.eval = eval;                                 \
-		}                                                              \
-		E = get_error(entries, K);                                     \
-		if (E < bestE) {                                               \
-			bestE = E, improved = true;                            \
-		} else {                                                       \
-			eval_params.field -= S(0, 2);                          \
-			for (et = entries; et - entries < N; et++) {           \
-				eval = et->trace.eval;                         \
-				eval -= S(0, 2 * (et->trace.field[WHITE] -     \
-						  et->trace.field[BLACK]));    \
-				phase = et->trace.phase;                       \
-				score = ((SMG(eval) * (256 - phase)) +         \
-					 (SEG(eval) * phase)) /                \
-					256;                                   \
-				et->static_eval = score;                       \
-				et->trace.eval = eval;                         \
-			}                                                      \
-			if (E < bestE) {                                       \
-				bestE = E, improved = true;                    \
-			} else {                                               \
-				eval_params.field += S(0, 1);                  \
-				for (et = entries; et - entries < N; et++) {   \
-					eval = et->trace.eval;                 \
-					eval += S(                             \
-					    0, 1 * (et->trace.field[WHITE] -   \
-						    et->trace.field[BLACK]));  \
-					phase = et->trace.phase;               \
-					score = ((SMG(eval) * (256 - phase)) + \
-						 (SEG(eval) * phase)) /        \
-						256;                           \
-					et->static_eval = score;               \
-					et->trace.eval = eval;                 \
-				}                                              \
-			}                                                      \
-		}                                                              \
-	} while (0)
-#define UPDATE_ARR(field)                                                      \
-	do {                                                                   \
-		for (unsigned i = 0; i < ARRAY_SIZE(eval_params.field); i++)   \
-			UPDATE_VAL(field[i]);                                  \
-	} while (0)
-
 	size_t iteration = 0;
-	double bestE = get_error(entries, K), E;
-	bool improved = true;
-	struct entry *et;
-	int eval, phase, score;
+	long double E_best = get_error(entries, K);
+	bool improved;
 
-	fprintf(stderr, "Initial error: E = %f\n", bestE);
-	while (improved) {
-		iteration++;
-		improved = false;
+	fprintf(stderr, "Initial:       E = %Lf\n", E_best);
+train:
+	iteration++;
+	improved = false;
 
-#if 1
-		UPDATE_ARR(piece_value);
-#endif
-#if 1
-		UPDATE_ARR(pawn_pcsqt);
-		UPDATE_ARR(knight_pcsqt);
-		UPDATE_ARR(bishop_pcsqt);
-		UPDATE_ARR(rook_pcsqt);
-		UPDATE_ARR(queen_pcsqt);
-		UPDATE_ARR(king_pcsqt);
-#endif
-#if 1
-		UPDATE_VAL(pawn_backward);
-		UPDATE_ARR(pawn_blocked);
-		UPDATE_VAL(pawn_doubled);
-		UPDATE_ARR(pawn_connected);
-		UPDATE_VAL(pawn_isolated);
-		UPDATE_ARR(pawn_passed);
-		UPDATE_ARR(pawn_center);
-#endif
-#if 1
-		UPDATE_ARR(knight_adj);
-		UPDATE_VAL(knight_defended_by_pawn);
-		UPDATE_VAL(knight_outpost);
-		UPDATE_ARR(knight_mobility);
-#endif
-#if 1
-		UPDATE_VAL(bishop_pair);
-		UPDATE_VAL(bishop_rammed_pawns);
-		UPDATE_ARR(bishop_mobility);
-#endif
-#if 1
-		UPDATE_VAL(rook_connected);
-		UPDATE_ARR(rook_adj);
-		UPDATE_VAL(rook_open_file);
-		UPDATE_VAL(rook_semiopen_file);
-		UPDATE_VAL(rook_7th);
-		UPDATE_ARR(rook_mobility);
-#endif
+#define UPDATE_ENTRIES(field, s)                                               \
+	do {                                                                   \
+		eval_params.field += s;                                        \
+		for (struct entry *et = entries; et - entries < N; et++) {     \
+			et->trace.eval +=                                      \
+			    S(SMG(s) * (et->trace.field[WHITE] -               \
+					et->trace.field[BLACK]),               \
+			      SEG(s) * (et->trace.field[WHITE] -               \
+					et->trace.field[BLACK]));              \
+			et->static_eval =                                      \
+			    ((SMG(et->trace.eval) * (256 - et->trace.phase)) + \
+			     (SEG(et->trace.eval) * et->trace.phase)) /        \
+			    256.0;                                             \
+		}                                                              \
+	} while (0)
 
-		fprintf(stderr, "Iteration %zu: E = %f\n", iteration, bestE);
-	}
+#define UPDATE_PARAM(field)                                                    \
+	do {                                                                   \
+		long double E;                                                 \
+		UPDATE_ENTRIES(field, S(1, 0));                                \
+		E = get_error(entries, K);                                     \
+		if (E < E_best) {                                              \
+			E_best = E, improved = true;                           \
+		} else {                                                       \
+			UPDATE_ENTRIES(field, S(-2, 0));                       \
+			E = get_error(entries, K);                             \
+			if (E < E_best)                                        \
+				E_best = E, improved = true;                   \
+			else                                                   \
+				UPDATE_ENTRIES(field, S(1, 0));                \
+		}                                                              \
+		UPDATE_ENTRIES(field, S(0, 1));                                \
+		E = get_error(entries, K);                                     \
+		if (E < E_best) {                                              \
+			E_best = E, improved = true;                           \
+		} else {                                                       \
+			UPDATE_ENTRIES(field, S(0, -2));                       \
+			E = get_error(entries, K);                             \
+			if (E < E_best)                                        \
+				E_best = E, improved = true;                   \
+			else                                                   \
+				UPDATE_ENTRIES(field, S(0, 1));                \
+		}                                                              \
+	} while (0)
 
-	fprintf(stderr, "Optimization finished after %zu iterations\n",
-		iteration);
+#define UPDATE_ARRAY(field)                                                    \
+	do {                                                                   \
+		for (size_t i = 0; i < ARRAY_SIZE(eval_params.field); i++)     \
+			UPDATE_PARAM(field[i]);                                \
+	} while (0)
+
+	UPDATE_ARRAY(piece_value);
+
+	UPDATE_ARRAY(pawn_pcsqt);
+	UPDATE_ARRAY(knight_pcsqt);
+	UPDATE_ARRAY(bishop_pcsqt);
+	UPDATE_ARRAY(rook_pcsqt);
+	UPDATE_ARRAY(queen_pcsqt);
+	UPDATE_ARRAY(king_pcsqt);
+
+	UPDATE_PARAM(pawn_backward);
+	UPDATE_ARRAY(pawn_blocked);
+	UPDATE_PARAM(pawn_doubled);
+	UPDATE_ARRAY(pawn_connected);
+	UPDATE_PARAM(pawn_isolated);
+	UPDATE_ARRAY(pawn_passed);
+	UPDATE_ARRAY(pawn_center);
+
+	UPDATE_ARRAY(knight_adj);
+	UPDATE_PARAM(knight_defended_by_pawn);
+	UPDATE_PARAM(knight_outpost);
+	UPDATE_ARRAY(knight_mobility);
+
+	UPDATE_PARAM(bishop_pair);
+	UPDATE_PARAM(bishop_rammed_pawns);
+	UPDATE_ARRAY(bishop_mobility);
+
+	UPDATE_PARAM(rook_connected);
+	UPDATE_ARRAY(rook_adj);
+	UPDATE_PARAM(rook_open_file);
+	UPDATE_PARAM(rook_semiopen_file);
+	UPDATE_PARAM(rook_7th);
+	UPDATE_ARRAY(rook_mobility);
+
+	fprintf(stderr, "Iteration %03zu: E = %Lf\n", iteration, E_best);
+
+	if (iteration % 10 == 0)
+		print_params();
+
+	if (improved)
+		goto train;
+
+	fprintf(stderr, "Final parameters:\n");
 	print_params();
 }
 
