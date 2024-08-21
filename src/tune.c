@@ -38,7 +38,7 @@ void print_params(void)
 	do {                                                                   \
 		printf(".%s = {\n", #field);                                   \
 		for (unsigned i = 0; i < ARRAY_SIZE(obj.field); i++) {         \
-			printf("\tS(%d, %d)\n", SMG(obj.field[i]),             \
+			printf("\tS(%d, %d),\n", SMG(obj.field[i]),            \
 			       SEG(obj.field[i]));                             \
 		}                                                              \
 		printf("},\n");                                                \
