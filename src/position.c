@@ -353,15 +353,15 @@ void pos_undo_null_move(struct position *pos)
 
 bool pos_is_draw(const struct position *pos)
 {
-	int n = 1, i = pos->game_ply;
+	int n = 1, i = pos->game_ply - 1;
 
 	/* fifty move rule */
 	if (pos->st->fifty_rule >= 100)
 		return true;
 
-	/* 3-folr repetition */
-	while (i >= pos->game_ply - (int)pos->st->fifty_rule && n < 3)
-		n += pos->key == pos->reps[--i];
+	/* 3-fold repetition */
+	while (i >= pos->game_ply - pos->st->fifty_rule && n < 3)
+		n += pos->key == pos->reps[i -= 2];
 	return n >= 3;
 }
 
