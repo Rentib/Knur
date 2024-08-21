@@ -38,8 +38,11 @@ void print_params(void)
 	do {                                                                   \
 		printf(".%s = {\n", #field);                                   \
 		for (unsigned i = 0; i < ARRAY_SIZE(obj.field); i++) {         \
-			printf("\tS(%d, %d),\n", SMG(obj.field[i]),            \
-			       SEG(obj.field[i]));                             \
+			printf("\tS(%4d, %4d),%c", SMG(obj.field[i]),          \
+			       SEG(obj.field[i]),                              \
+			       ARRAY_SIZE(obj.field) == 64 && (i + 1) % 8 != 0 \
+				   ? ' '                                       \
+				   : '\n');                                    \
 		}                                                              \
 		printf("},\n");                                                \
 	} while (0)
