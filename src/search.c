@@ -25,7 +25,6 @@ static int quiescence(struct position *position,
 static int negamax(struct position *position, struct search_stack *search_stack,
 		   int alpha, int beta, int depth);
 static void *search(void *arg);
-static void *time_manager(void *arg);
 
 struct search_params search_params = {
     .window_depth = 4,
@@ -38,9 +37,17 @@ static struct search_params *sp = &search_params;
 
 static u64 nodes;
 static atomic_bool running = false, thrd_joined = true;
+static u64 stop_time;
 static pthread_t thrd;
 static jmp_buf jbuffer;
 static enum move counters[12][SQUARE_NB];
+
+INLINE bool abort_search(void)
+{
+	if (stop_time && nodes % 4096 == 0 && gettime() >= stop_time)
+		running = false;
+	return !running;
+}
 
 static int quiescence(struct position *pos, struct search_stack *ss, int alpha,
 		      int beta)
@@ -49,7 +56,7 @@ static int quiescence(struct position *pos, struct search_stack *ss, int alpha,
 	enum move move;
 	struct move_picker mp;
 
-	if (!running)
+	if (abort_search())
 		longjmp(jbuffer, 1);
 	nodes++;
 
@@ -107,7 +114,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	/* Abort Search.
 	 * Exit if time is up or the program has been stopped by a UCI command.
 	 */
-	if (!running)
+	if (abort_search())
 		longjmp(jbuffer, 1);
 	nodes++;
 
@@ -249,7 +256,6 @@ void *search(void *arg)
 	struct arg *starg = arg;
 	struct position *pos = &starg->pos;
 	struct search_limits *limits = starg->limits;
-	pthread_t manager;
 	struct search_stack search_stack[MAX_PLY + 2] = {0};
 	struct search_stack *ss = search_stack + 2;
 	int maxdepth = limits->depth;
@@ -276,10 +282,18 @@ void *search(void *arg)
 	/* clear transposition table */
 	tt_clear();
 
-	if (pthread_create(&manager, nullptr, time_manager, arg))
-		die("pthread_create:");
-	if (pthread_detach(manager))
-		die("pthread_detach:");
+	stop_time = 0;
+	if (limits->movetime != -1) {
+		limits->movestogo = 1;
+		limits->time = limits->movetime;
+	}
+	if (limits->time != -1) {
+		limits->movetime = limits->time / limits->movestogo;
+		limits->movetime += (limits->movestogo > 1) * limits->inc;
+		limits->movetime -= 50;
+
+		stop_time = limits->start + limits->movetime;
+	}
 
 	/* iterative deepening */
 	for (depth = 1; depth <= maxdepth; depth++) {
@@ -324,36 +338,10 @@ void *search(void *arg)
 
 	printf("bestmove %s\n", MOVE_STR(bestmove));
 
-	if (pthread_cancel(manager))
-		die("pthread_cancel:");
-
 	for (i = 0; i < MAX_PLY; i++)
 		free((ss + i)->pv);
 	free(arg);
 	running = false;
-	return nullptr;
-}
-
-static void *time_manager(void *arg)
-{
-	struct search_limits *limits = ((struct arg *)arg)->limits;
-	int time = limits->time, inc = limits->inc,
-	    movestogo = limits->movestogo, movetime = limits->movetime;
-
-	if (movetime != -1) {
-		movestogo = 1;
-		time = movetime;
-	}
-
-	if (time == -1)
-		return nullptr;
-	movetime = time / movestogo + (movestogo > 1) * inc - 50;
-
-	thrd_sleep(&(struct timespec){.tv_sec = movetime / 1000,
-				      .tv_nsec = (movetime % 1000) * 1000000},
-		   nullptr);
-	running = false;
-
 	return nullptr;
 }
 
