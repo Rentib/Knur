@@ -41,38 +41,38 @@ struct eval_params {
 
 #ifdef TUNE
 struct eval_trace {
-	int piece_value[6][COLOR_NB];
+	int8_t piece_value[6][COLOR_NB];
 
-	bool pawn_pcsqt[SQUARE_NB][COLOR_NB];
-	bool knight_pcsqt[SQUARE_NB][COLOR_NB];
-	bool bishop_pcsqt[SQUARE_NB][COLOR_NB];
-	bool rook_pcsqt[SQUARE_NB][COLOR_NB];
-	bool queen_pcsqt[SQUARE_NB][COLOR_NB];
-	bool king_pcsqt[SQUARE_NB][COLOR_NB];
+	int8_t pawn_pcsqt[SQUARE_NB][COLOR_NB];
+	int8_t knight_pcsqt[SQUARE_NB][COLOR_NB];
+	int8_t bishop_pcsqt[SQUARE_NB][COLOR_NB];
+	int8_t rook_pcsqt[SQUARE_NB][COLOR_NB];
+	int8_t queen_pcsqt[SQUARE_NB][COLOR_NB];
+	int8_t king_pcsqt[SQUARE_NB][COLOR_NB];
 
-	int pawn_backward[COLOR_NB];
-	int pawn_blocked[2][COLOR_NB];
-	int pawn_doubled[COLOR_NB];
-	int pawn_connected[8][COLOR_NB];
-	int pawn_isolated[COLOR_NB];
-	int pawn_passed[8][COLOR_NB];
-	int pawn_center[6][COLOR_NB];
+	int8_t pawn_backward[COLOR_NB];
+	int8_t pawn_blocked[2][COLOR_NB];
+	int8_t pawn_doubled[COLOR_NB];
+	int8_t pawn_connected[8][COLOR_NB];
+	int8_t pawn_isolated[COLOR_NB];
+	int8_t pawn_passed[8][COLOR_NB];
+	int8_t pawn_center[6][COLOR_NB];
 
-	int knight_adj[9][COLOR_NB];
-	int knight_defended_by_pawn[COLOR_NB];
-	int knight_outpost[COLOR_NB];
-	int knight_mobility[9][COLOR_NB];
+	int8_t knight_adj[9][COLOR_NB];
+	int8_t knight_defended_by_pawn[COLOR_NB];
+	int8_t knight_outpost[COLOR_NB];
+	int8_t knight_mobility[9][COLOR_NB];
 
-	int bishop_pair[COLOR_NB];
-	int bishop_rammed_pawns[COLOR_NB];
-	int bishop_mobility[14][COLOR_NB];
+	int8_t bishop_pair[COLOR_NB];
+	int8_t bishop_rammed_pawns[COLOR_NB];
+	int8_t bishop_mobility[14][COLOR_NB];
 
-	int rook_connected[COLOR_NB];
-	int rook_adj[9][COLOR_NB];
-	int rook_open_file[COLOR_NB];
-	int rook_semiopen_file[COLOR_NB];
-	int rook_7th[COLOR_NB];
-	int rook_mobility[15][COLOR_NB];
+	int8_t rook_connected[COLOR_NB];
+	int8_t rook_adj[9][COLOR_NB];
+	int8_t rook_open_file[COLOR_NB];
+	int8_t rook_semiopen_file[COLOR_NB];
+	int8_t rook_7th[COLOR_NB];
+	int8_t rook_mobility[15][COLOR_NB];
 
 	int eval;
 	int phase;
