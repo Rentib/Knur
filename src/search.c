@@ -258,13 +258,10 @@ void *search(void *arg)
 	struct search_limits *limits = starg->limits;
 	struct search_stack search_stack[MAX_PLY + 2] = {0};
 	struct search_stack *ss = search_stack + 2;
-	int maxdepth = limits->depth;
 	int i, depth, score;
 	enum move bestmove;
 	int alpha = -CHECKMATE, beta = CHECKMATE, window;
 
-	if (maxdepth <= 0 || MAX_PLY <= maxdepth)
-		maxdepth = MAX_PLY - 1;
 	nodes = 0;
 	memset(counters, MOVE_NONE, sizeof(counters));
 
@@ -296,7 +293,7 @@ void *search(void *arg)
 	}
 
 	/* iterative deepening */
-	for (depth = 1; depth <= maxdepth; depth++) {
+	for (depth = 1; depth <= limits->depth; depth++) {
 		if (setjmp(jbuffer))
 			break;
 
@@ -354,8 +351,8 @@ void search_start(struct position *pos, struct search_limits *limits)
 	arg->pos.st = arg->pos.state_stack + (pos->st - pos->state_stack);
 	arg->limits = limits;
 	running = true;
-	if (!thrd_joined)
-		pthread_join(thrd, nullptr);
+	if (!thrd_joined && pthread_join(thrd, nullptr))
+		die("pthread_join:");
 	else
 		thrd_joined = false;
 	if (pthread_create(&thrd, nullptr, search, arg))

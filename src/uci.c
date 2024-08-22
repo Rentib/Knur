@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "evaluate.h"
+#include "knur.h"
 #include "movegen.h"
 #include "perft.h"
 #include "position.h"
@@ -128,9 +128,10 @@ void go(struct position *pos, char *fmt)
 	limits.time = -1;
 	limits.inc = 0;
 	limits.movestogo = 30;
-	limits.depth = 0;
+	limits.depth = MAX_PLY - 1;
 	limits.movetime = -1;
 	limits.infinite = false;
+	limits.start = gettime();
 
 	for (token = strtok_r(fmt, " ", &saveptr); token;
 	     token = strtok_r(nullptr, " ", &saveptr)) {
@@ -155,7 +156,7 @@ void go(struct position *pos, char *fmt)
 			limits.movestogo = atoi(token);
 		} else if (!strcmp(token, "depth")) {
 			token = strtok_r(nullptr, " ", &saveptr);
-			limits.depth = atoi(token);
+			limits.depth = MIN(MAX_PLY - 1, atoi(token));
 		} else if (!strcmp(token, "movetime")) {
 			token = strtok_r(nullptr, " ", &saveptr);
 			limits.movetime = atoi(token);
@@ -163,8 +164,6 @@ void go(struct position *pos, char *fmt)
 			limits.infinite = true;
 		}
 	}
-
-	limits.start = gettime();
 
 	search_start(pos, &limits);
 }
