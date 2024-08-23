@@ -1,143 +1,175 @@
 #include <math.h>
+#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "bitboards.h"
 #include "evaluate.h"
-#include "knur.h"
 #include "position.h"
 #include "transposition.h"
 #include "util.h"
+
+#define NPOSITIONS (3160531)
+#define NTERMS     (sizeof(struct eval_params) / sizeof(int))
+#define NEPOCHS    (1000)
+#define KPRECISION (6)
 
 #define S(mg, eg)  ((int)((unsigned)(eg) << 16) + (mg))
 #define SMG(score) ((int16_t)((uint16_t)((unsigned)((score) + 0x0000) >> 00)))
 #define SEG(score) ((int16_t)((uint16_t)((unsigned)((score) + 0x8000) >> 16)))
 
-#define N (2577463)
+enum { MG, EG };
+
+typedef double params_t[NTERMS][2];
 
 struct entry {
-	struct eval_trace trace;
-	double result;
-	double static_eval;
+	double R;
+	double E;
+	int8_t w[NTERMS], b[NTERMS];
+	double rho_mg, rho_eg;
 };
 
-static void print_params(void);
-static void read_data(const char *filename, struct entry *entries);
+static void init_params(params_t params);
+static void print_params(params_t params);
+static void read_data(char *filename, struct entry *entries);
 static double get_best_K(struct entry *entries);
-static void optimize(struct entry *entries, double K);
+static void tune(params_t params, struct entry *entries, double K);
 
-void print_params(void)
+INLINE double sigmoid(double x, double K)
 {
-#define PARAM(obj, field)                                                      \
-	do {                                                                   \
-		printf(".%s = S(%d, %d),\n", #field, SMG(obj.field),           \
-		       SEG(obj.field));                                        \
-	} while (0)
+	return 1.0 / (1.0 + exp(-K * x / 400));
+}
 
-#define PARAM_ARRAY(obj, field)                                                \
+INLINE double get_error(struct entry *entries, double K)
+{
+	double E = 0;
+	unsigned i;
+#pragma omp parallel shared(E)
+	{
+#pragma omp for schedule(static, NPOSITIONS / 64) reduction(+ : E)
+		for (i = 0; i < NPOSITIONS; i++)
+			E += pow(entries[i].R - sigmoid(entries[i].E, K), 2);
+	}
+	return E / NPOSITIONS;
+}
+
+void init_params(params_t params)
+{
+	unsigned i;
+	int *cast = (int *)&eval_params;
+	for (i = 0; i < NTERMS; i++, cast++) {
+		params[i][MG] = SMG(*cast);
+		params[i][EG] = SEG(*cast);
+	}
+}
+
+void print_params(params_t params)
+{
+	unsigned i;
+	struct eval_params ep;
+	int *cast = (int *)&ep;
+	for (i = 0; i < NTERMS; i++)
+		cast[i] = S((int)params[i][MG], (int)params[i][EG]);
+
+#define print_val(term)                                                        \
 	do {                                                                   \
-		printf(".%s = {\n", #field);                                   \
-		for (unsigned i = 0; i < ARRAY_SIZE(obj.field); i++) {         \
-			printf("\tS(%4d, %4d),%c", SMG(obj.field[i]),          \
-			       SEG(obj.field[i]),                              \
-			       ARRAY_SIZE(obj.field) == 64 && (i + 1) % 8 != 0 \
+		printf(".%s = S(%d, %d),\n", #term, SMG(ep.term),              \
+		       SEG(ep.term));                                          \
+	} while (0)
+#define print_arr(term)                                                        \
+	do {                                                                   \
+		printf(".%s = {\n", #term);                                    \
+		for (i = 0; i < ARRAY_SIZE(ep.term); i++) {                    \
+			printf("\tS(%4d, %4d),%c", SMG(ep.term[i]),            \
+			       SEG(ep.term[i]),                                \
+			       ARRAY_SIZE(ep.term) == 64 && i % 8 != 7         \
 				   ? ' '                                       \
 				   : '\n');                                    \
 		}                                                              \
 		printf("},\n");                                                \
 	} while (0)
 
-	PARAM_ARRAY(eval_params, piece_value);
+	print_arr(piece_value);
 
-	PARAM_ARRAY(eval_params, pawn_pcsqt);
-	PARAM_ARRAY(eval_params, knight_pcsqt);
-	PARAM_ARRAY(eval_params, bishop_pcsqt);
-	PARAM_ARRAY(eval_params, rook_pcsqt);
-	PARAM_ARRAY(eval_params, queen_pcsqt);
-	PARAM_ARRAY(eval_params, king_pcsqt);
+	print_arr(pawn_pcsqt);
+	print_arr(knight_pcsqt);
+	print_arr(bishop_pcsqt);
+	print_arr(rook_pcsqt);
+	print_arr(queen_pcsqt);
+	print_arr(king_pcsqt);
 
-	PARAM(eval_params, pawn_backward);
-	PARAM_ARRAY(eval_params, pawn_blocked);
-	PARAM(eval_params, pawn_doubled);
-	PARAM_ARRAY(eval_params, pawn_connected);
-	PARAM(eval_params, pawn_isolated);
-	PARAM_ARRAY(eval_params, pawn_passed);
-	PARAM_ARRAY(eval_params, pawn_center);
+	print_val(pawn_backward);
+	print_arr(pawn_blocked);
+	print_val(pawn_doubled);
+	print_arr(pawn_connected);
+	print_val(pawn_isolated);
+	print_arr(pawn_passed);
+	print_arr(pawn_center);
 
-	PARAM_ARRAY(eval_params, knight_adj);
-	PARAM(eval_params, knight_defended_by_pawn);
-	PARAM(eval_params, knight_outpost);
-	PARAM_ARRAY(eval_params, knight_mobility);
+	print_arr(knight_adj);
+	print_val(knight_defended_by_pawn);
+	print_val(knight_outpost);
+	print_arr(knight_mobility);
 
-	PARAM(eval_params, bishop_pair);
-	PARAM(eval_params, bishop_rammed_pawns);
-	PARAM_ARRAY(eval_params, bishop_mobility);
+	print_val(bishop_pair);
+	print_val(bishop_rammed_pawns);
+	print_arr(bishop_mobility);
 
-	PARAM(eval_params, rook_connected);
-	PARAM_ARRAY(eval_params, rook_adj);
-	PARAM(eval_params, rook_open_file);
-	PARAM(eval_params, rook_semiopen_file);
-	PARAM(eval_params, rook_7th);
-	PARAM_ARRAY(eval_params, rook_mobility);
+	print_val(rook_connected);
+	print_arr(rook_adj);
+	print_val(rook_open_file);
+	print_val(rook_semiopen_file);
+	print_val(rook_7th);
+	print_arr(rook_mobility);
 
 	fflush(stdout);
 }
 
-void read_data(const char *filename, struct entry *entries)
+void read_data(char *filename, struct entry *entries)
 {
-	char buf[1024], *p;
-	unsigned i;
-	char *fen, *R_str;
+	unsigned i, j;
+	char input[256], *p;
 	FILE *fp;
 	struct position position, *pos = &position;
+	int8_t *cast;
 
-	fp = fopen(filename, "r");
-	for (i = 0; i < N; i++) {
-		fen = buf;
-		for (p = buf; (*p = fgetc(fp)) && *p != '\n'; p++) {
-			if (*p == '|') {
-				*p = '\0';
-				R_str = p + 1;
-			}
+	fprintf(stderr, "Reading data from \'%s\'\n", filename);
+
+	if (!(fp = fopen(filename, "r")))
+		die("fopen:");
+
+	for (i = 0; i < NPOSITIONS; i++) {
+		if (fgets(input, ARRAY_SIZE(input), fp) == NULL)
+			die("tune: not enough data");
+		if (!(p = strchr(input, '|')))
+			die("tune: invalid data");
+		*p++ = '\0';
+
+		pos_set_fen(pos, input);
+		entries[i].R = atof(p);
+		entries[i].E = evaluate(pos) * (pos->stm == BLACK ? -1 : 1);
+		cast = (int8_t *)&eval_trace;
+		for (j = 0; j < NTERMS; j++) {
+			entries[i].w[j] = cast[j * 2 + WHITE];
+			entries[i].b[j] = cast[j * 2 + BLACK];
 		}
-		*p = '\0';
-
-		pos_set_fen(pos, fen);
-		entries[i].result = atof(R_str);
-		entries[i].static_eval = evaluate(pos);
-		if (pos->stm == BLACK) /* white point of view */
-			entries[i].static_eval *= -1;
-		entries[i].trace = eval_trace;
+		entries[i].rho_mg = 1 - eval_trace.phase / 256.0;
+		entries[i].rho_eg = 0 + eval_trace.phase / 256.0;
 	}
-	fclose(fp);
-}
 
-INLINE double sigmoid(double K, double s)
-{
-	return 1.0 / (1.0 + exp(-K * s / 400.0));
-}
-
-INLINE long double get_error(struct entry *entries, double K)
-{
-	double E = 0;
-	unsigned i;
-
-#pragma omp parallel shared(total)
-	{
-#pragma omp for schedule(static, N / 64) reduction(+ : E)
-		for (i = 0; i < N; i++)
-			E += pow(entries[i].result -
-				     sigmoid(K, entries[i].static_eval),
-				 2);
-	}
-	return E / (double)N;
+	if (fclose(fp))
+		die("fclose:");
 }
 
 double get_best_K(struct entry *entries)
 {
-	const double eps = 1e-6;
+	const double eps = pow(10, -KPRECISION);
 	double low = -10, high = 10, mid;
 	double E1, E2;
+
+	fprintf(stderr, "Searching for best K\n");
+
 	while (low + eps <= high) {
 		mid = (low + high) / 2;
 		E1 = get_error(entries, mid);
@@ -145,178 +177,85 @@ double get_best_K(struct entry *entries)
 		if (E1 < E2) {
 			high = mid;
 		} else {
-			low = mid + eps;
+			low = mid;
 		}
 	}
+
+	fprintf(stderr, "Best K = %.6f\n", low);
 
 	return low;
 }
 
-#if 0
-static int trace_eval(struct eval_trace *trace)
+void tune(params_t params, struct entry *entries, double K)
 {
-	int eval = 0;
-	struct eval_params *ep = &eval_params;
-#define TRACE_SCORE_VAL(field)                                                 \
-	do {                                                                   \
-		eval += S((trace->field[WHITE] - trace->field[BLACK]) *        \
-			      SMG(ep->field),                                  \
-			  (trace->field[WHITE] - trace->field[BLACK]) *        \
-			      SEG(ep->field));                                 \
-	} while (0)
-#define TRACE_SCORE_ARR(field)                                                 \
-	do {                                                                   \
-		for (unsigned __i = 0; __i < ARRAY_SIZE(ep->field); __i++)     \
-			TRACE_SCORE_VAL(field[__i]);                           \
-	} while (0)
+	unsigned epoch, i;
+	params_t gradient;
+	double s, x;
+	struct entry *et;
+	u64 timestamp;
 
-	TRACE_SCORE_ARR(piece_value);
-	TRACE_SCORE_ARR(pawn_pcsqt);
-	TRACE_SCORE_ARR(knight_pcsqt);
-	TRACE_SCORE_ARR(bishop_pcsqt);
-	TRACE_SCORE_ARR(rook_pcsqt);
-	TRACE_SCORE_ARR(queen_pcsqt);
-	TRACE_SCORE_ARR(king_pcsqt);
-	TRACE_SCORE_VAL(pawn_backward);
-	TRACE_SCORE_ARR(pawn_blocked);
-	TRACE_SCORE_VAL(pawn_doubled);
-	TRACE_SCORE_ARR(pawn_connected);
-	TRACE_SCORE_VAL(pawn_isolated);
-	TRACE_SCORE_ARR(pawn_passed);
-	TRACE_SCORE_ARR(pawn_center);
-	TRACE_SCORE_ARR(knight_adj);
-	TRACE_SCORE_VAL(knight_defended_by_pawn);
-	TRACE_SCORE_VAL(knight_outpost);
-	TRACE_SCORE_ARR(knight_mobility);
-	TRACE_SCORE_VAL(bishop_pair);
-	TRACE_SCORE_VAL(bishop_rammed_pawns);
-	TRACE_SCORE_ARR(bishop_mobility);
-	TRACE_SCORE_VAL(rook_connected);
-	TRACE_SCORE_ARR(rook_adj);
-	TRACE_SCORE_VAL(rook_open_file);
-	TRACE_SCORE_VAL(rook_semiopen_file);
-	TRACE_SCORE_VAL(rook_7th);
-	TRACE_SCORE_ARR(rook_mobility);
-	return eval;
-}
-#endif
+	fprintf(stderr, "Tuning parameters\n");
 
-void optimize(struct entry *entries, double K)
-{
-	size_t iteration = 0;
-	long double E_best = get_error(entries, K);
-	bool improved;
+	print_params(params);
 
-	fprintf(stderr, "Initial:       E = %Lf\n", E_best);
-train:
-	iteration++;
-	improved = false;
+	for (epoch = 1; epoch <= NEPOCHS; epoch++) {
+		timestamp = gettime();
+#pragma omp parallel private(i, et, s, x) shared(params, entries, K, gradient)
+		{
+			for (i = 0; i < NTERMS; i++) {
+				gradient[i][MG] = 0;
+				gradient[i][EG] = 0;
+				for (et = entries; et - entries < NPOSITIONS;
+				     et++) {
+					s = sigmoid(et->E, K);
+					x = (s - et->R) * K * s * (1 - s) *
+					    (et->w[i] - et->b[i]);
+					gradient[i][MG] += x * et->rho_mg;
+					gradient[i][EG] += x * et->rho_eg;
+				}
+				gradient[i][MG] *= 2.0 / NPOSITIONS;
+				gradient[i][EG] *= 2.0 / NPOSITIONS;
+			}
+		}
 
-#define UPDATE_ENTRIES(field, s)                                               \
-	do {                                                                   \
-		eval_params.field += s;                                        \
-		for (struct entry *et = entries; et - entries < N; et++) {     \
-			et->trace.eval +=                                      \
-			    S(SMG(s) * (et->trace.field[WHITE] -               \
-					et->trace.field[BLACK]),               \
-			      SEG(s) * (et->trace.field[WHITE] -               \
-					et->trace.field[BLACK]));              \
-			et->static_eval =                                      \
-			    ((SMG(et->trace.eval) * (256 - et->trace.phase)) + \
-			     (SEG(et->trace.eval) * et->trace.phase)) /        \
-			    256.0;                                             \
-		}                                                              \
-	} while (0)
+#pragma omp parallel for private(i) shared(params, gradient)
+		{
+			for (i = 0; i < NTERMS; i++) {
+				params[i][MG] -= gradient[i][MG];
+				params[i][EG] -= gradient[i][EG];
+			}
+		}
 
-#define UPDATE_PARAM(field)                                                    \
-	do {                                                                   \
-		long double E;                                                 \
-		UPDATE_ENTRIES(field, S(1, 0));                                \
-		E = get_error(entries, K);                                     \
-		if (E < E_best) {                                              \
-			E_best = E, improved = true;                           \
-		} else {                                                       \
-			UPDATE_ENTRIES(field, S(-2, 0));                       \
-			E = get_error(entries, K);                             \
-			if (E < E_best)                                        \
-				E_best = E, improved = true;                   \
-			else                                                   \
-				UPDATE_ENTRIES(field, S(1, 0));                \
-		}                                                              \
-		UPDATE_ENTRIES(field, S(0, 1));                                \
-		E = get_error(entries, K);                                     \
-		if (E < E_best) {                                              \
-			E_best = E, improved = true;                           \
-		} else {                                                       \
-			UPDATE_ENTRIES(field, S(0, -2));                       \
-			E = get_error(entries, K);                             \
-			if (E < E_best)                                        \
-				E_best = E, improved = true;                   \
-			else                                                   \
-				UPDATE_ENTRIES(field, S(0, 1));                \
-		}                                                              \
-	} while (0)
+#pragma omp parallel for private(et) shared(entries, params)
+		{
+			for (et = entries; et - entries < NPOSITIONS; et++) {
+				et->E = 0;
+				for (i = 0; i < NTERMS; i++) {
+					et->E += (et->w[i] - et->b[i]) *
+						     params[i][MG] *
+						     et->rho_mg +
+						 (et->w[i] - et->b[i]) *
+						     params[i][EG] * et->rho_eg;
+				}
+			}
+		}
 
-#define UPDATE_ARRAY(field)                                                    \
-	do {                                                                   \
-		for (size_t i = 0; i < ARRAY_SIZE(eval_params.field); i++)     \
-			UPDATE_PARAM(field[i]);                                \
-	} while (0)
+		fprintf(stderr, "Epoch %d: error = %.6f\n", epoch,
+			get_error(entries, K));
+		fprintf(stderr, "Time: %lu ms\n", gettime() - timestamp);
 
-	UPDATE_ARRAY(piece_value);
+		if (epoch % 10 == 0)
+			print_params(params);
+	}
 
-	UPDATE_ARRAY(pawn_pcsqt);
-	UPDATE_ARRAY(knight_pcsqt);
-	UPDATE_ARRAY(bishop_pcsqt);
-	UPDATE_ARRAY(rook_pcsqt);
-	UPDATE_ARRAY(queen_pcsqt);
-	UPDATE_ARRAY(king_pcsqt);
-
-	UPDATE_PARAM(pawn_backward);
-	UPDATE_ARRAY(pawn_blocked);
-	UPDATE_PARAM(pawn_doubled);
-	UPDATE_ARRAY(pawn_connected);
-	UPDATE_PARAM(pawn_isolated);
-	UPDATE_ARRAY(pawn_passed);
-	UPDATE_ARRAY(pawn_center);
-
-	UPDATE_ARRAY(knight_adj);
-	UPDATE_PARAM(knight_defended_by_pawn);
-	UPDATE_PARAM(knight_outpost);
-	UPDATE_ARRAY(knight_mobility);
-
-	UPDATE_PARAM(bishop_pair);
-	UPDATE_PARAM(bishop_rammed_pawns);
-	UPDATE_ARRAY(bishop_mobility);
-
-	UPDATE_PARAM(rook_connected);
-	UPDATE_ARRAY(rook_adj);
-	UPDATE_PARAM(rook_open_file);
-	UPDATE_PARAM(rook_semiopen_file);
-	UPDATE_PARAM(rook_7th);
-	UPDATE_ARRAY(rook_mobility);
-
-	fprintf(stderr, "Iteration %03zu: E = %Lf\n", iteration, E_best);
-
-	if (iteration % 10 == 0)
-		print_params();
-
-	if (improved)
-		goto train;
-
-	fprintf(stderr, "Final parameters:\n");
-	print_params();
+	print_params(params);
 }
 
 int main(int argc, char *argv[])
 {
-	char *filename;
-	struct entry *entries;
+	struct entry *entries = ecalloc(NPOSITIONS, sizeof(struct entry));
+	params_t params;
 	double K;
-
-	if (argc != 2)
-		die("usage: tune file");
-	filename = argv[1];
 
 	bb_init();
 	evaluate_init();
@@ -324,23 +263,17 @@ int main(int argc, char *argv[])
 	tt_init(TT_DEFAULT_SIZE);
 	pht_init(2);
 
-	fprintf(stderr, "Allocating memory\n");
-	entries = ecalloc(N, sizeof(struct entry));
+	if (argc != 2)
+		die("usage: tuner data");
 
-	fprintf(stderr, "Reading data\n");
-	read_data(filename, entries);
-
-	fprintf(stderr, "Getting best K\n");
+	init_params(params);
+	read_data(argv[1], entries);
 	K = get_best_K(entries);
-	fprintf(stderr, "K = %f\n", K);
+	tune(params, entries, K);
 
-	print_params();
-
-	fprintf(stderr, "Optimizing\n");
-	optimize(entries, K);
-
-	tt_free();
 	pht_free();
+	tt_free();
 	bb_free();
 	free(entries);
+	return 0;
 }
