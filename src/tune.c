@@ -1,5 +1,4 @@
 #include <math.h>
-#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,7 +9,7 @@
 #include "transposition.h"
 #include "util.h"
 
-#define NPOSITIONS (3160531)
+#define NPOSITIONS (2405344)
 #define NTERMS     (sizeof(struct eval_params) / sizeof(int))
 #define NEPOCHS    (1000)
 #define KPRECISION (6)
@@ -34,6 +33,10 @@ static void init_params(params_t params);
 static void print_params(params_t params);
 static void read_data(char *filename, struct entry *entries);
 static double get_best_K(struct entry *entries);
+static void compute_gradient(struct entry *entries, double K,
+			     params_t gradient);
+static void update_params(params_t params, params_t gradient);
+static void update_evaluations(struct entry *entries, params_t params);
 static void tune(params_t params, struct entry *entries, double K);
 
 INLINE double sigmoid(double x, double K)
@@ -45,12 +48,8 @@ INLINE double get_error(struct entry *entries, double K)
 {
 	double E = 0;
 	unsigned i;
-#pragma omp parallel shared(E)
-	{
-#pragma omp for schedule(static, NPOSITIONS / 64) reduction(+ : E)
-		for (i = 0; i < NPOSITIONS; i++)
-			E += pow(entries[i].R - sigmoid(entries[i].E, K), 2);
-	}
+	for (i = 0; i < NPOSITIONS; i++)
+		E += pow(entries[i].R - sigmoid(entries[i].E, K), 2);
 	return E / NPOSITIONS;
 }
 
@@ -186,12 +185,59 @@ double get_best_K(struct entry *entries)
 	return low;
 }
 
+void compute_gradient(struct entry *entries, double K, params_t gradient)
+{
+	unsigned i, j;
+	double s, x, mg, eg;
+	struct entry *et;
+
+	memset(gradient, 0, sizeof(params_t));
+	for (i = 0; i < NPOSITIONS; i++) {
+		et = &entries[i];
+		s = sigmoid(et->E, K);
+		x = (s - et->R) * K * s * (1 - s);
+		mg = x * et->rho_mg;
+		eg = x * et->rho_eg;
+		for (j = 0; j < NTERMS; j++) {
+			gradient[j][MG] += mg * (et->w[j] - et->b[j]);
+			gradient[j][EG] += eg * (et->w[j] - et->b[j]);
+		}
+	}
+
+	for (j = 0; j < NTERMS; j++) {
+		gradient[j][MG] *= 2.0 / NPOSITIONS;
+		gradient[j][EG] *= 2.0 / NPOSITIONS;
+	}
+}
+
+void update_params(params_t params, params_t gradient)
+{
+	unsigned i;
+	for (i = 0; i < NTERMS; i++) {
+		params[i][MG] -= gradient[i][MG];
+		params[i][EG] -= gradient[i][EG];
+	}
+}
+
+void update_evaluations(struct entry *entries, params_t params)
+{
+	unsigned i, j;
+	struct entry *et;
+	for (i = 0; i < NPOSITIONS; i++) {
+		et = &entries[i];
+		et->E = 0;
+		for (j = 0; j < NTERMS; j++) {
+			et->E +=
+			    (et->w[j] - et->b[j]) * params[j][MG] * et->rho_mg +
+			    (et->w[j] - et->b[j]) * params[j][EG] * et->rho_eg;
+		}
+	}
+}
+
 void tune(params_t params, struct entry *entries, double K)
 {
-	unsigned epoch, i;
+	unsigned epoch;
 	params_t gradient;
-	double s, x;
-	struct entry *et;
 	u64 timestamp;
 
 	fprintf(stderr, "Tuning parameters\n");
@@ -200,45 +246,10 @@ void tune(params_t params, struct entry *entries, double K)
 
 	for (epoch = 1; epoch <= NEPOCHS; epoch++) {
 		timestamp = gettime();
-#pragma omp parallel private(i, et, s, x) shared(params, entries, K, gradient)
-		{
-			for (i = 0; i < NTERMS; i++) {
-				gradient[i][MG] = 0;
-				gradient[i][EG] = 0;
-				for (et = entries; et - entries < NPOSITIONS;
-				     et++) {
-					s = sigmoid(et->E, K);
-					x = (s - et->R) * K * s * (1 - s) *
-					    (et->w[i] - et->b[i]);
-					gradient[i][MG] += x * et->rho_mg;
-					gradient[i][EG] += x * et->rho_eg;
-				}
-				gradient[i][MG] *= 2.0 / NPOSITIONS;
-				gradient[i][EG] *= 2.0 / NPOSITIONS;
-			}
-		}
 
-#pragma omp parallel for private(i) shared(params, gradient)
-		{
-			for (i = 0; i < NTERMS; i++) {
-				params[i][MG] -= gradient[i][MG];
-				params[i][EG] -= gradient[i][EG];
-			}
-		}
-
-#pragma omp parallel for private(et) shared(entries, params)
-		{
-			for (et = entries; et - entries < NPOSITIONS; et++) {
-				et->E = 0;
-				for (i = 0; i < NTERMS; i++) {
-					et->E += (et->w[i] - et->b[i]) *
-						     params[i][MG] *
-						     et->rho_mg +
-						 (et->w[i] - et->b[i]) *
-						     params[i][EG] * et->rho_eg;
-				}
-			}
-		}
+		compute_gradient(entries, K, gradient);
+		update_params(params, gradient);
+		update_evaluations(entries, params);
 
 		fprintf(stderr, "Epoch %d: error = %.6f\n", epoch,
 			get_error(entries, K));
