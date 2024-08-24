@@ -28,7 +28,8 @@ tune: CFLAGS += -DTUNE
 tune: CFLAGS += -O3 -ffast-math
 tune: CFLAGS += -march=native -m64 -mpopcnt
 tune: CFLAGS += -mbmi2 -DUSE_PEXT
-tune: LDFLAGS += -lm
+tune: CFLAGS += -fopenmp
+tune: LDFLAGS += -lm -lomp
 tune: tune.o $(REQ:=.o)
 	$(CC) -o $@ $(REQ:=.o) tune.o $(LDFLAGS)
 

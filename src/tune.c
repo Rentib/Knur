@@ -11,7 +11,7 @@
 
 #define NPOSITIONS (2405344)
 #define NTERMS     (sizeof(struct eval_params) / sizeof(int))
-#define NEPOCHS    (1000)
+#define NEPOCHS    (10000)
 #define KPRECISION (6)
 
 #define S(mg, eg)  ((int)((unsigned)(eg) << 16) + (mg))
@@ -23,10 +23,10 @@ enum { MG, EG };
 typedef double params_t[NTERMS][2];
 
 struct entry {
-	double R;
-	double E;
-	int8_t w[NTERMS], b[NTERMS];
-	double rho_mg, rho_eg;
+	double R;              /* game result */
+	double E;              /* static evaluation */
+	int16_t wb[NTERMS];    /* white - black */
+	double rho_mg, rho_eg; /* mg and eg phase scalars */
 };
 
 static void init_params(params_t params);
@@ -48,6 +48,7 @@ INLINE double get_error(struct entry *entries, double K)
 {
 	double E = 0;
 	unsigned i;
+#pragma omp parallel for schedule(static) reduction(+ : E)
 	for (i = 0; i < NPOSITIONS; i++)
 		E += pow(entries[i].R - sigmoid(entries[i].E, K), 2);
 	return E / NPOSITIONS;
@@ -149,10 +150,9 @@ void read_data(char *filename, struct entry *entries)
 		entries[i].R = atof(p);
 		entries[i].E = evaluate(pos) * (pos->stm == BLACK ? -1 : 1);
 		cast = (int8_t *)&eval_trace;
-		for (j = 0; j < NTERMS; j++) {
-			entries[i].w[j] = cast[j * 2 + WHITE];
-			entries[i].b[j] = cast[j * 2 + BLACK];
-		}
+		for (j = 0; j < NTERMS; j++)
+			entries[i].wb[j] =
+			    cast[j * 2 + WHITE] - cast[j * 2 + BLACK];
 		entries[i].rho_mg = 1 - eval_trace.phase / 256.0;
 		entries[i].rho_eg = 0 + eval_trace.phase / 256.0;
 	}
@@ -187,26 +187,34 @@ double get_best_K(struct entry *entries)
 
 void compute_gradient(struct entry *entries, double K, params_t gradient)
 {
-	unsigned i, j;
-	double s, x, mg, eg;
-	struct entry *et;
-
 	memset(gradient, 0, sizeof(params_t));
-	for (i = 0; i < NPOSITIONS; i++) {
-		et = &entries[i];
-		s = sigmoid(et->E, K);
-		x = (s - et->R) * K * s * (1 - s);
-		mg = x * et->rho_mg;
-		eg = x * et->rho_eg;
-		for (j = 0; j < NTERMS; j++) {
-			gradient[j][MG] += mg * (et->w[j] - et->b[j]);
-			gradient[j][EG] += eg * (et->w[j] - et->b[j]);
+#pragma omp parallel shared(gradient)
+	{
+		params_t local = {0};
+		struct entry *et;
+		double s, x, mg, eg;
+#pragma omp for schedule(static) nowait
+		for (unsigned i = 0; i < NPOSITIONS; i++) {
+			et = &entries[i];
+			s = sigmoid(et->E, K);
+			x = (s - et->R) * K * s * (1 - s);
+			mg = x * et->rho_mg;
+			eg = x * et->rho_eg;
+			for (unsigned j = 0; j < NTERMS; j++) {
+				local[j][MG] += mg * et->wb[j];
+				local[j][EG] += eg * et->wb[j];
+			}
+		}
+
+		for (unsigned i = 0; i < NTERMS; i++) {
+			gradient[i][MG] += local[i][MG];
+			gradient[i][EG] += local[i][EG];
 		}
 	}
 
-	for (j = 0; j < NTERMS; j++) {
-		gradient[j][MG] *= 2.0 / NPOSITIONS;
-		gradient[j][EG] *= 2.0 / NPOSITIONS;
+	for (unsigned i = 0; i < NTERMS; i++) {
+		gradient[i][MG] *= 2.0 / NPOSITIONS;
+		gradient[i][EG] *= 2.0 / NPOSITIONS;
 	}
 }
 
@@ -221,15 +229,14 @@ void update_params(params_t params, params_t gradient)
 
 void update_evaluations(struct entry *entries, params_t params)
 {
-	unsigned i, j;
 	struct entry *et;
-	for (i = 0; i < NPOSITIONS; i++) {
+#pragma omp parallel for schedule(static)
+	for (unsigned i = 0; i < NPOSITIONS; i++) {
 		et = &entries[i];
 		et->E = 0;
-		for (j = 0; j < NTERMS; j++) {
-			et->E +=
-			    (et->w[j] - et->b[j]) * params[j][MG] * et->rho_mg +
-			    (et->w[j] - et->b[j]) * params[j][EG] * et->rho_eg;
+		for (unsigned j = 0; j < NTERMS; j++) {
+			et->E += et->wb[j] * params[j][MG] * et->rho_mg +
+				 et->wb[j] * params[j][EG] * et->rho_eg;
 		}
 	}
 }
@@ -251,7 +258,7 @@ void tune(params_t params, struct entry *entries, double K)
 		update_params(params, gradient);
 		update_evaluations(entries, params);
 
-		fprintf(stderr, "Epoch %d: error = %.6f\n", epoch,
+		fprintf(stderr, "Epoch %04d: error = %.6f\n", epoch,
 			get_error(entries, K));
 		fprintf(stderr, "Time: %lu ms\n", gettime() - timestamp);
 
