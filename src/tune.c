@@ -232,12 +232,13 @@ void update_evaluations(struct entry *entries, params_t params)
 	struct entry *et;
 #pragma omp parallel for schedule(static)
 	for (unsigned i = 0; i < NPOSITIONS; i++) {
+		double E_mg = 0, E_eg = 0;
 		et = &entries[i];
-		et->E = 0;
 		for (unsigned j = 0; j < NTERMS; j++) {
-			et->E += et->wb[j] * params[j][MG] * et->rho_mg +
-				 et->wb[j] * params[j][EG] * et->rho_eg;
+			E_mg += et->wb[j] * params[j][MG];
+			E_eg += et->wb[j] * params[j][EG];
 		}
+		et->E = E_mg * et->rho_mg + E_eg * et->rho_eg;
 	}
 }
 
