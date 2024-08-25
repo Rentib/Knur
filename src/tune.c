@@ -9,7 +9,7 @@
 #include "transposition.h"
 #include "util.h"
 
-#define NPOSITIONS (2405344)
+#define NPOSITIONS (4203720)
 #define BATCHSIZE  (1 << 14)
 #define NTERMS     (sizeof(struct eval_params) / sizeof(int))
 #define NEPOCHS    (10000)
@@ -257,7 +257,7 @@ void tune(params_t params, struct entry *entries, double K)
 	for (epoch = 1; epoch <= NEPOCHS; epoch++) {
 		timestamp = gettime();
 
-		for (et = entries; et < entries + NPOSITIONS - BATCHSIZE;
+		for (et = entries; et <= entries + NPOSITIONS - BATCHSIZE;
 		     et += BATCHSIZE) {
 			compute_gradient(et, K, gradient);
 			update_params(params, gradient);
