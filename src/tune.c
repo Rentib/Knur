@@ -10,6 +10,7 @@
 #include "util.h"
 
 #define NPOSITIONS (2405344)
+#define BATCHSIZE  (1 << 14)
 #define NTERMS     (sizeof(struct eval_params) / sizeof(int))
 #define NEPOCHS    (10000)
 #define KPRECISION (6)
@@ -194,7 +195,7 @@ void compute_gradient(struct entry *entries, double K, params_t gradient)
 		struct entry *et;
 		double s, x, mg, eg;
 #pragma omp for schedule(static) nowait
-		for (unsigned i = 0; i < NPOSITIONS; i++) {
+		for (unsigned i = 0; i < BATCHSIZE; i++) {
 			et = &entries[i];
 			s = sigmoid(et->E, K);
 			x = (s - et->R) * K * s * (1 - s);
@@ -231,7 +232,7 @@ void update_evaluations(struct entry *entries, params_t params)
 {
 	struct entry *et;
 #pragma omp parallel for schedule(static)
-	for (unsigned i = 0; i < NPOSITIONS; i++) {
+	for (unsigned i = 0; i < BATCHSIZE; i++) {
 		double E_mg = 0, E_eg = 0;
 		et = &entries[i];
 		for (unsigned j = 0; j < NTERMS; j++) {
@@ -247,6 +248,7 @@ void tune(params_t params, struct entry *entries, double K)
 	unsigned epoch;
 	params_t gradient;
 	u64 timestamp;
+	struct entry *et;
 
 	fprintf(stderr, "Tuning parameters\n");
 
@@ -255,9 +257,12 @@ void tune(params_t params, struct entry *entries, double K)
 	for (epoch = 1; epoch <= NEPOCHS; epoch++) {
 		timestamp = gettime();
 
-		compute_gradient(entries, K, gradient);
-		update_params(params, gradient);
-		update_evaluations(entries, params);
+		for (et = entries; et < entries + NPOSITIONS - BATCHSIZE;
+		     et += BATCHSIZE) {
+			compute_gradient(et, K, gradient);
+			update_params(params, gradient);
+			update_evaluations(et, params);
+		}
 
 		fprintf(stderr, "Epoch %04d: error = %.9f\n", epoch,
 			get_error(entries, K));
