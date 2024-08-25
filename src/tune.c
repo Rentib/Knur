@@ -180,7 +180,7 @@ double get_best_K(struct entry *entries)
 		}
 	}
 
-	fprintf(stderr, "Best K = %.6f\n", low);
+	fprintf(stderr, "Best K = %.9f\n", low);
 
 	return low;
 }
@@ -258,7 +258,7 @@ void tune(params_t params, struct entry *entries, double K)
 		update_params(params, gradient);
 		update_evaluations(entries, params);
 
-		fprintf(stderr, "Epoch %04d: error = %.6f\n", epoch,
+		fprintf(stderr, "Epoch %04d: error = %.9f\n", epoch,
 			get_error(entries, K));
 		fprintf(stderr, "Time: %lu ms\n", gettime() - timestamp);
 
