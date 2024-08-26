@@ -535,12 +535,16 @@ int evaluate(const struct position *pos)
 	pawn_cnt[WHITE] = BB_POPCOUNT(pos->piece[PAWN] & pos->color[WHITE]);
 	pawn_cnt[BLACK] = BB_POPCOUNT(pos->piece[PAWN] & pos->color[BLACK]);
 
+#ifndef TUNE
 	if (!pht_probe(pos->pawn_key, pos->color[WHITE] & pos->piece[PAWN],
 		       pos->color[BLACK] & pos->piece[PAWN], &eval)) {
+#endif
 		eval += eval_pawns(pos, WHITE) - eval_pawns(pos, BLACK);
+#ifndef TUNE
 		pht_store(pos->pawn_key, pos->color[WHITE] & pos->piece[PAWN],
 			  pos->color[BLACK] & pos->piece[PAWN], eval);
 	}
+#endif
 	eval += eval_knights(pos, WHITE) - eval_knights(pos, BLACK);
 	eval += eval_bishops(pos, WHITE) - eval_bishops(pos, BLACK);
 	eval += eval_rooks(pos, WHITE) - eval_rooks(pos, BLACK);
