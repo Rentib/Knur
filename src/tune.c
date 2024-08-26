@@ -36,7 +36,6 @@ static void read_data(char *filename, struct entry *entries);
 static double get_best_K(struct entry *entries);
 static void compute_gradient(struct entry *entries, double K,
 			     params_t gradient);
-static void update_params(params_t params, params_t gradient);
 static void update_evaluations(struct entry *entries, params_t params);
 static void tune(params_t params, struct entry *entries, double K);
 
@@ -219,15 +218,6 @@ void compute_gradient(struct entry *entries, double K, params_t gradient)
 	}
 }
 
-void update_params(params_t params, params_t gradient)
-{
-	unsigned i;
-	for (i = 0; i < NTERMS; i++) {
-		params[i][MG] -= gradient[i][MG];
-		params[i][EG] -= gradient[i][EG];
-	}
-}
-
 void update_evaluations(struct entry *entries, params_t params)
 {
 	struct entry *et;
@@ -245,28 +235,37 @@ void update_evaluations(struct entry *entries, params_t params)
 
 void tune(params_t params, struct entry *entries, double K)
 {
-	unsigned epoch;
-	params_t gradient;
-	u64 timestamp;
 	struct entry *et;
+	unsigned epoch, i;
+	params_t g, m = {0}, v = {0};
+	const double beta1 = 0.9, beta2 = 0.999, eps = 1e-8;
+	double error, rate = 0.001, alpha, beta1t = 1, beta2t = 1;
 
 	fprintf(stderr, "Tuning parameters\n");
 
 	print_params(params);
 
 	for (epoch = 1; epoch <= NEPOCHS; epoch++) {
-		timestamp = gettime();
-
-		for (et = entries; et <= entries + NPOSITIONS - BATCHSIZE;
-		     et += BATCHSIZE) {
-			compute_gradient(et, K, gradient);
-			update_params(params, gradient);
+		beta1t *= beta1;
+		beta2t *= beta2;
+		alpha = rate * (1 - beta2t) / (1 - beta1t);
+		for (et = entries; et <= entries + NPOSITIONS - BATCHSIZE; et += BATCHSIZE) {
+			compute_gradient(et, K, g);
+			for (i = 0; i < NTERMS; i++) {
+				m[i][MG] = beta1 * m[i][MG] + (1 - beta1) * g[i][MG];
+				m[i][EG] = beta1 * m[i][EG] + (1 - beta1) * g[i][EG];
+				v[i][MG] = beta2 * v[i][MG] + (1 - beta2) * pow(g[i][MG], 2);
+				v[i][EG] = beta2 * v[i][EG] + (1 - beta2) * pow(g[i][EG], 2);
+				params[i][MG] -= alpha * m[i][MG] / (sqrt(v[i][MG]) + eps);
+				params[i][EG] -= alpha * m[i][EG] / (sqrt(v[i][EG]) + eps);
+			}
 			update_evaluations(et, params);
 		}
+		error = get_error(entries, K);
+		fprintf(stderr, "Epoch %04d: error = %.9f, rate = %g\n", epoch, error, rate);
 
-		fprintf(stderr, "Epoch %04d: error = %.9f\n", epoch,
-			get_error(entries, K));
-		fprintf(stderr, "Time: %lu ms\n", gettime() - timestamp);
+		if (epoch % 250 == 0)
+			rate *= 0.75;
 
 		if (epoch % 10 == 0)
 			print_params(params);
