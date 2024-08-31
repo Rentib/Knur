@@ -46,6 +46,7 @@ void bb_free(void);
 void bb_print(u64 bitboard);
 
 u64 bb_between(enum square square1, enum square square2);
+int bb_distance(enum square square1, enum square square2);
 u64 bb_pawn_attacks(enum color color, enum square square);
 u64 bb_attacks(enum piece_type piece, enum square square, u64 occupancy);
 

@@ -45,6 +45,7 @@ INLINE unsigned magic_hash(struct magic *m, u64 occ)
 }
 
 static u64 between[SQUARE_NB][SQUARE_NB];     /* [square][square] */
+static int distance[SQUARE_NB][SQUARE_NB];    /* [square][square] */
 static u64 pawn_attacks[COLOR_NB][SQUARE_NB]; /* [color][square] */
 static u64 king_attacks[SQUARE_NB];           /* [square] */
 static u64 knight_attacks[SQUARE_NB];         /* [square] */
@@ -79,6 +80,9 @@ void bb_init(void)
 			}
 			BB_SET(between[sq][sq2], sq);
 			BB_SET(between[sq][sq2], sq2);
+
+			distance[sq][sq2] =
+			    MAX(ABS((int)SQ_FILE(sq) - (int)SQ_FILE(sq2)), 0);
 		}
 	}
 }
@@ -113,6 +117,11 @@ void bb_print(u64 bb)
 u64 bb_between(enum square square1, enum square square2)
 {
 	return between[square1][square2];
+}
+
+int bb_distance(enum square square1, enum square square2)
+{
+	return distance[square1][square2];
 }
 
 u64 bb_pawn_attacks(enum color c, enum square sq)
