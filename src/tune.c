@@ -9,7 +9,7 @@
 #include "transposition.h"
 #include "util.h"
 
-#define NPOSITIONS (4203720)
+#define NPOSITIONS (1896902)
 #define BATCHSIZE  (1 << 14)
 #define NTERMS     (sizeof(struct eval_params) / sizeof(int))
 #define NEPOCHS    (10000)
@@ -110,10 +110,13 @@ void print_params(params_t params)
 	print_arr(knight_adj);
 	print_val(knight_defended_by_pawn);
 	print_val(knight_outpost);
+	print_val(knight_protector);
 	print_arr(knight_mobility);
 
 	print_val(bishop_pair);
 	print_val(bishop_rammed_pawns);
+	print_val(bishop_long_diagonal);
+	print_val(bishop_protector);
 	print_arr(bishop_mobility);
 
 	print_val(rook_connected);

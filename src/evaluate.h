@@ -25,10 +25,13 @@ struct eval_params {
 	int knight_adj[9];
 	int knight_defended_by_pawn;
 	int knight_outpost;
+	int knight_protector;
 	int knight_mobility[9];
 
 	int bishop_pair;
 	int bishop_rammed_pawns;
+	int bishop_long_diagonal;
+	int bishop_protector;
 	int bishop_mobility[14];
 
 	int rook_connected;
@@ -61,10 +64,13 @@ struct eval_trace {
 	int8_t knight_adj[9][COLOR_NB];
 	int8_t knight_defended_by_pawn[COLOR_NB];
 	int8_t knight_outpost[COLOR_NB];
+	int8_t knight_protector[COLOR_NB];
 	int8_t knight_mobility[9][COLOR_NB];
 
 	int8_t bishop_pair[COLOR_NB];
 	int8_t bishop_rammed_pawns[COLOR_NB];
+	int8_t bishop_long_diagonal[COLOR_NB];
+	int8_t bishop_protector[COLOR_NB];
 	int8_t bishop_mobility[14][COLOR_NB];
 
 	int8_t rook_connected[COLOR_NB];
