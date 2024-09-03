@@ -192,21 +192,25 @@ struct eval_params eval_params = {
 	},
 };
 /* clang-format on */
-static struct eval_params *ep = &eval_params;
 
 #ifdef TUNE
 struct eval_trace eval_trace;
 #define TRACE_RESET()                                                          \
 	eval_trace = (struct eval_trace) { 0 }
-#define TRACE_INC(field, color)          eval_trace.field[color]++
-#define TRACE_INC_VAL(field, color, val) eval_trace.field[color] += val
-#define TRACE_SET(field, val)            eval_trace.field = val
+#define TRACE_INC(field, color, cnt) eval_trace.field[color] += cnt
+#define TRACE_SET(field, val)        eval_trace.field = val
 #else
 #define TRACE_RESET()
-#define TRACE_INC(field, color)
-#define TRACE_INC_VAL(field, color, val)
+#define TRACE_INC(field, color, val)
 #define TRACE_SET(field, val)
 #endif
+
+#define EVAL_INC_CNT(field, color, cnt)                                        \
+	do {                                                                   \
+		eval += eval_params.field * cnt;                               \
+		TRACE_INC(field, color, cnt);                                  \
+	} while (0)
+#define EVAL_INC(field, color) EVAL_INC_CNT(field, color, 1)
 
 static int eval_pawns(const struct position *position, const enum color side);
 static int eval_knights(const struct position *position, const enum color side);
@@ -240,12 +244,11 @@ int eval_pawns(const struct position *pos, const enum color side)
 
 	/* center */
 	mask = allied_pawns & mask_center_pawn;
-	eval += ep->pawn_center[BB_POPCOUNT(mask)];
-	TRACE_INC(pawn_center[BB_POPCOUNT(mask)], side);
+	EVAL_INC(pawn_center[BB_POPCOUNT(mask)], side);
 
 	for (mask = allied_pawns; mask;) {
 		sq = bb_poplsb(&mask);
-		TRACE_INC(piece_value[PAWN], side);
+		EVAL_INC(piece_value[PAWN], side);
 
 		blocked = enemy_pawns & BB_FROM_SQUARE(sq + NORTH);
 		lever = enemy_pawns & bb_pawn_attacks(side, sq);
@@ -256,47 +259,34 @@ int eval_pawns(const struct position *pos, const enum color side)
 		support = neighbours & mask_rank[SQ_RANK(sq + SOUTH)];
 
 		/* piece square table */
-		eval += ep->pawn_pcsqt[sq];
-		TRACE_INC(pawn_pcsqt[sq], side);
+		EVAL_INC(pawn_pcsqt[sq], side);
 
 		/* backward */
 		if (!(neighbours & (~BB_RANK_8 << 8 * SQ_RANK(sq)) &&
-		      (blocked | lever_push))) {
-			eval += ep->pawn_backward;
-			TRACE_INC(pawn_backward, side);
-		}
+		      (blocked | lever_push)))
+			EVAL_INC(pawn_backward, side);
 
 		/* blocked */
-		if (blocked && sq <= SQ_H5) {
-			eval += ep->pawn_blocked[SQ_RANK(sq) - 2];
-			TRACE_INC(pawn_blocked[SQ_RANK(sq) - 2], side);
-		}
+		if (blocked && sq <= SQ_H5)
+			EVAL_INC(pawn_blocked[SQ_RANK(sq) - 2], side);
 
 		/* doubled */
-		if (allied_pawns & BB_FROM_SQUARE(sq + SOUTH)) {
-			eval += ep->pawn_doubled;
-			TRACE_INC(pawn_doubled, side);
-		}
+		if (allied_pawns & BB_FROM_SQUARE(sq + SOUTH))
+			EVAL_INC(pawn_doubled, side);
 
 		/* connected */
-		if (phalanx | support) {
-			eval += ep->pawn_connected[SQ_RANK(sq)];
-			TRACE_INC(pawn_connected[SQ_RANK(sq)], side);
-		}
+		if (phalanx | support)
+			EVAL_INC(pawn_connected[SQ_RANK(sq)], side);
 
 		/* isolated */
-		else if (!neighbours) {
-			eval += ep->pawn_isolated;
-			TRACE_INC(pawn_isolated, side);
-		}
+		else if (!neighbours)
+			EVAL_INC(pawn_isolated, side);
 
 		/* passed */
 		if (!(lever ^ stoppers) ||
 		    (!(stoppers ^ lever_push) &&
-		     BB_POPCOUNT(phalanx) >= BB_POPCOUNT(lever_push))) {
-			eval += ep->pawn_passed[SQ_RANK(sq)];
-			TRACE_INC(pawn_passed[SQ_RANK(sq)], side);
-		}
+		     BB_POPCOUNT(phalanx) >= BB_POPCOUNT(lever_push)))
+			EVAL_INC(pawn_passed[SQ_RANK(sq)], side);
 	}
 
 	return eval;
@@ -321,44 +311,34 @@ static int eval_knights(const struct position *pos, const enum color side)
 
 	for (; mask;) {
 		sq = bb_poplsb(&mask);
-		TRACE_INC(piece_value[KNIGHT], side);
+		EVAL_INC(piece_value[KNIGHT], side);
 
 		/* piece square table */
-		eval += ep->knight_pcsqt[sq];
-		TRACE_INC(knight_pcsqt[sq], side);
+		EVAL_INC(knight_pcsqt[sq], side);
 
 		/* decrease value as allied pawns disappear */
-		eval += ep->knight_adj[pawn_cnt[side]];
-		TRACE_INC(knight_adj[pawn_cnt[side]], side);
+		EVAL_INC(knight_adj[pawn_cnt[side]], side);
 
 		if (bb_pawn_attacks(BLACK, sq) & allied_pawns) {
 			/* knight defended by a pawn */
-			eval += ep->knight_defended_by_pawn;
-			TRACE_INC(knight_defended_by_pawn, side);
+			EVAL_INC(knight_defended_by_pawn, side);
 			/* outposts */
 			if (((SQ_A6 <= sq && sq <= SQ_H5) ||
 			     (SQ_C4 <= sq && sq <= SQ_F4)) &&
 			    !(enemy_pawns & mask_passed[sq] &
-			      mask_adj_file[SQ_FILE(sq)])) {
-				eval += ep->knight_outpost;
-				TRACE_INC(knight_outpost, side);
-			}
+			      mask_adj_file[SQ_FILE(sq)]))
+				EVAL_INC(knight_outpost, side);
 		}
 
 		/* knight king protector */
-		eval += ep->knight_protector * bb_distance(sq, ksq);
-		TRACE_INC_VAL(knight_protector, side, bb_distance(sq, ksq));
+		EVAL_INC_CNT(knight_protector, side, bb_distance(sq, ksq));
 
 		/* mobility */
-		eval += ep->knight_mobility[BB_POPCOUNT(
-		    bb_attacks(KNIGHT, sq, 0) &
-		    ~(allies | bb_shift(enemy_pawns, SOUTH_EAST) |
-		      bb_shift(enemy_pawns, SOUTH_WEST)))];
-		TRACE_INC(knight_mobility[BB_POPCOUNT(
-			      bb_attacks(KNIGHT, sq, 0) &
-			      ~(allies | bb_shift(enemy_pawns, SOUTH_EAST) |
-				bb_shift(enemy_pawns, SOUTH_WEST)))],
-			  side);
+		EVAL_INC(knight_mobility[BB_POPCOUNT(
+			     bb_attacks(KNIGHT, sq, 0) &
+			     ~(allies | bb_shift(enemy_pawns, SOUTH_EAST) |
+			       bb_shift(enemy_pawns, SOUTH_WEST)))],
+			 side);
 
 		/* TODO: knight trapped on A8/H8/A7/H7 or A1/H1/A2/H2 */
 		/* TODO: penalty for an undefended minor piece */
@@ -387,50 +367,38 @@ static int eval_bishops(const struct position *pos, const enum color side)
 	}
 
 	/* bishop pair */
-	if (BB_SEVERAL(mask)) {
-		eval += ep->bishop_pair;
-		TRACE_INC(bishop_pair, side);
-	}
+	if (BB_SEVERAL(mask))
+		EVAL_INC(bishop_pair, side);
 
 	for (; mask;) {
 		sq = bb_poplsb(&mask);
-		TRACE_INC(piece_value[BISHOP], side);
+		EVAL_INC(piece_value[BISHOP], side);
 
 		/* piece square table */
-		eval += ep->bishop_pcsqt[sq];
-		TRACE_INC(bishop_pcsqt[sq], side);
+		EVAL_INC(bishop_pcsqt[sq], side);
 
 		/* bad bishop */
 		if (sq % 2 == 0) {
-			eval += ep->bishop_rammed_pawns *
-				BB_POPCOUNT(allied_pawns & BB_WHITE_SQUARES);
-			TRACE_INC_VAL(
+			EVAL_INC_CNT(
 			    bishop_rammed_pawns, side,
 			    BB_POPCOUNT(allied_pawns & BB_WHITE_SQUARES));
 		} else {
-			eval += ep->bishop_rammed_pawns *
-				BB_POPCOUNT(allied_pawns & BB_BLACK_SQUARES);
-			TRACE_INC_VAL(
+			EVAL_INC_CNT(
 			    bishop_rammed_pawns, side,
 			    BB_POPCOUNT(allied_pawns & BB_BLACK_SQUARES));
 		}
 
 		/* long diagonal bishop */
-		if (BB_SEVERAL(bb_attacks(BISHOP, sq, occ) & mask_center)) {
-			eval += ep->bishop_long_diagonal;
-			TRACE_INC(bishop_long_diagonal, side);
-		}
+		if (BB_SEVERAL(bb_attacks(BISHOP, sq, occ) & mask_center))
+			EVAL_INC(bishop_long_diagonal, side);
 
 		/* bishop king protector */
-		eval += ep->bishop_protector * bb_distance(sq, ksq);
-		TRACE_INC_VAL(bishop_protector, side, bb_distance(sq, ksq));
+		EVAL_INC_CNT(bishop_protector, side, bb_distance(sq, ksq));
 
 		/* mobility */
-		eval += ep->bishop_mobility[BB_POPCOUNT(
-		    bb_attacks(BISHOP, sq, occ) & ~allies)];
-		TRACE_INC(bishop_mobility[BB_POPCOUNT(
-			      bb_attacks(BISHOP, sq, occ) & ~allies)],
-			  side);
+		EVAL_INC(bishop_mobility[BB_POPCOUNT(
+			     bb_attacks(BISHOP, sq, occ) & ~allies)],
+			 side);
 
 		/* TODO: bishop vs knight */
 		/* TODO: color weakness */
@@ -453,48 +421,37 @@ static int eval_rooks(const struct position *pos, const enum color side)
 	/* connected rooks */
 	if (BB_SEVERAL(mask)) {
 		sq = bb_poplsb(&mask);
-		if (bb_attacks(ROOK, sq, pos->piece[ALL_PIECES]) & mask) {
-			eval += ep->rook_connected;
-			TRACE_INC(rook_connected, side);
-		}
+		if (bb_attacks(ROOK, sq, pos->piece[ALL_PIECES]) & mask)
+			EVAL_INC(rook_connected, side);
 	}
 	mask = allies & pos->piece[ROOK];
 
 	for (; mask;) {
 		sq = bb_poplsb(&mask);
-		TRACE_INC(piece_value[ROOK], side);
+		if (side == BLACK)
+			sq = SQ_FLIP(sq);
+		EVAL_INC(piece_value[ROOK], side);
 
-		eval += side == WHITE ? ep->rook_pcsqt[sq]
-				      : ep->rook_pcsqt[SQ_FLIP(sq)];
-		TRACE_INC(rook_pcsqt[side == WHITE ? sq : SQ_FLIP(sq)], side);
+		/* piece square table */
+		EVAL_INC(rook_pcsqt[sq], side);
 
 		/* increasing value as pawns disappear */
-		eval += ep->rook_adj[pawn_cnt[side]];
-		TRACE_INC(rook_adj[pawn_cnt[side]], side);
+		EVAL_INC(rook_adj[pawn_cnt[side]], side);
 
 		/* (semi) open file */
-		if (!(mask_file[SQ_FILE(sq)] & pos->piece[PAWN])) {
-			eval += ep->rook_open_file;
-			TRACE_INC(rook_open_file, side);
-		} else if (!(mask_file[SQ_FILE(sq)] & pos->piece[PAWN] &
-			     allies)) {
-			eval += ep->rook_semiopen_file;
-			TRACE_INC(rook_semiopen_file, side);
-		}
+		if (!(mask_file[SQ_FILE(sq)] & pos->piece[PAWN]))
+			EVAL_INC(rook_open_file, side);
+		else if (!(mask_file[SQ_FILE(sq)] & pos->piece[PAWN] & allies))
+			EVAL_INC(rook_semiopen_file, side);
 
 		/* rook on 7th */
-		if ((side == WHITE && 8 - SQ_RANK(sq) >= 7) ||
-		    (side == BLACK && 8 - SQ_RANK(sq) <= 2)) {
-			eval += ep->rook_7th;
-			TRACE_INC(rook_7th, side);
-		}
+		if (8 - SQ_RANK(sq) >= 7)
+			EVAL_INC(rook_7th, side);
 
 		/* mobility */
-		eval += ep->rook_mobility[BB_POPCOUNT(
-		    bb_attacks(ROOK, sq, pos->piece[ALL_PIECES]))];
-		TRACE_INC(rook_mobility[BB_POPCOUNT(
-			      bb_attacks(ROOK, sq, pos->piece[ALL_PIECES]))],
-			  side);
+		EVAL_INC(rook_mobility[BB_POPCOUNT(
+			     bb_attacks(ROOK, sq, pos->piece[ALL_PIECES]))],
+			 side);
 
 		/* TODO: Tarrasch rule */
 		/* TODO: penalty for being blocked by king that can't castle */
@@ -515,10 +472,10 @@ static int eval_queens(const struct position *pos, const enum color side)
 
 	while (mask) {
 		sq = bb_poplsb(&mask);
-		TRACE_INC(piece_value[QUEEN], side);
+		EVAL_INC(piece_value[QUEEN], side);
 
-		eval += ep->queen_pcsqt[sq];
-		TRACE_INC(queen_pcsqt[sq], side);
+		/* piece square table */
+		EVAL_INC(queen_pcsqt[sq], side);
 	}
 
 	return eval;
@@ -531,12 +488,12 @@ static int eval_king(const struct position *pos, const enum color side)
 	u64 mask = pos->color[side] & pos->piece[KING];
 
 	ksq = BB_TO_SQUARE(mask);
-	TRACE_INC(piece_value[KING], side);
 	if (side == BLACK)
 		ksq = SQ_FLIP(ksq);
+	EVAL_INC(piece_value[KING], side);
 
-	eval += ep->king_pcsqt[ksq];
-	TRACE_INC(king_pcsqt[ksq], side);
+	/* piece square table */
+	EVAL_INC(king_pcsqt[ksq], side);
 
 	return eval;
 }
@@ -544,7 +501,6 @@ static int eval_king(const struct position *pos, const enum color side)
 int evaluate(const struct position *pos)
 {
 	int score, phase;
-	enum piece_type pt;
 	int eval = 0;
 
 	TRACE_RESET();
@@ -567,17 +523,6 @@ int evaluate(const struct position *pos)
 	eval += eval_rooks(pos, WHITE) - eval_rooks(pos, BLACK);
 	eval += eval_queens(pos, WHITE) - eval_queens(pos, BLACK);
 	eval += eval_king(pos, WHITE) - eval_king(pos, BLACK);
-
-	/* material */
-	for (pt = PAWN; pt <= KING; pt++) {
-		eval +=
-		    S(SMG(ep->piece_value[pt]) *
-			  (BB_POPCOUNT(pos->color[WHITE] & pos->piece[pt]) -
-			   BB_POPCOUNT(pos->color[BLACK] & pos->piece[pt])),
-		      SEG(ep->piece_value[pt]) *
-			  (BB_POPCOUNT(pos->color[WHITE] & pos->piece[pt]) -
-			   BB_POPCOUNT(pos->color[BLACK] & pos->piece[pt])));
-	}
 
 	phase = 24;
 	phase -= BB_POPCOUNT(pos->piece[PAWN]) * 0;
