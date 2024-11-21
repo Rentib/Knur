@@ -2,7 +2,8 @@
 UCI-compliant chess engine, written from scratch in C.
 
 ## Strength
-Around 2400 elo.
+Around 2394 elo on
+[CCRL](https://computerchess.org.uk/ccrl/4040/rating_list_all.html).
 
 ## Features
 - [Negamax](https://www.chessprogramming.org/Negamax) with [PVS](https://www.chessprogramming.org/Principal_Variation_Search)
