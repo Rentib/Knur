@@ -228,7 +228,7 @@ void pos_do_move(struct position *pos, enum move m)
 
 	*st = *(pos->st);
 	st->fifty_rule++;
-	if (pc == PAWN || captured != NO_PIECE)
+	if (PIECE_TYPE(pc) == PAWN || captured != NO_PIECE)
 		st->fifty_rule = 0;
 	st->captured = captured;
 	pos->st = st;
