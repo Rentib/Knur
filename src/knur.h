@@ -1,6 +1,7 @@
 #ifndef KNUR_H_
 #define KNUR_H_
 
+#include <stddef.h>
 #include <stdint.h>
 
 enum color { WHITE, BLACK, COLOR_NB };
@@ -118,11 +119,12 @@ enum move_type {
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
 #define MIN(A, B) ((A) < (B) ? (A) : (B))
 
-#define MAX_MOVES      (1024)
-#define MAX_PLY        (64)
-#define STALEMATE      (0)
-#define CHECKMATE      (32000 + MAX_PLY)
-#define UNKNOWN        (CHECKMATE + 1)
+constexpr size_t MAX_MOVES = 1024;
+constexpr int MAX_PLY = 64;
+constexpr int STALEMATE = 0;
+constexpr int CHECKMATE = 32000 + MAX_PLY;
+constexpr int UNKNOWN = CHECKMATE + 1;
+
 #define MATE_IN(n)     (+CHECKMATE - (n))
 #define MATED_IN(n)    (-CHECKMATE + (n))
 #define IS_MATE(score) (ABS(score) >= CHECKMATE - MAX_PLY)
