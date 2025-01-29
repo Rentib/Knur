@@ -9,11 +9,11 @@
 #include "transposition.h"
 #include "util.h"
 
-#define NPOSITIONS (1896902)
-#define BATCHSIZE  (1 << 14)
-#define NTERMS     (sizeof(struct eval_params) / sizeof(int))
-#define NEPOCHS    (10000)
-#define KPRECISION (6)
+constexpr size_t NPOSITIONS = 1896902;
+constexpr size_t BATCHSIZE = 1 << 14;
+constexpr size_t NTERMS = sizeof(struct eval_params) / sizeof(int);
+constexpr size_t NEPOCHS = 10000;
+constexpr double KPRECISION = 6;
 
 #define S(mg, eg)  ((int)((unsigned)(eg) << 16) + (mg))
 #define SMG(score) ((int16_t)((uint16_t)((unsigned)((score) + 0x0000) >> 00)))

@@ -5,11 +5,11 @@
 
 #include "knur.h"
 
-#define TT_DEFAULT_SIZE (16)
-#define TT_MIN_SIZE     (1)
-#define TT_MAX_SIZE     (1024)
+constexpr size_t TT_DEFAULT_SIZE = 16;
+constexpr size_t TT_MIN_SIZE = 1;
+constexpr size_t TT_MAX_SIZE = 1024;
 
-#define MEBIBYTE (1ULL << 20)
+constexpr size_t MEBIBYTE = 1ULL << 20;
 
 enum tt_type {
 	TT_NONE,

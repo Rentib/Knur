@@ -18,26 +18,26 @@
 #define BB_TO_SQUARE(bitboard) (__builtin_ctzll(bitboard))
 
 /* {{{ Common bitboards */
-#define BB_RANK_1 (0xFF00000000000000ULL)
-#define BB_RANK_2 (BB_RANK_1 >> 8)
-#define BB_RANK_3 (BB_RANK_2 >> 8)
-#define BB_RANK_4 (BB_RANK_3 >> 8)
-#define BB_RANK_5 (BB_RANK_4 >> 8)
-#define BB_RANK_6 (BB_RANK_5 >> 8)
-#define BB_RANK_7 (BB_RANK_6 >> 8)
-#define BB_RANK_8 (BB_RANK_7 >> 8)
+constexpr u64 BB_RANK_1 = 0xFF00000000000000ULL;
+constexpr u64 BB_RANK_2 = BB_RANK_1 >> 8;
+constexpr u64 BB_RANK_3 = BB_RANK_2 >> 8;
+constexpr u64 BB_RANK_4 = BB_RANK_3 >> 8;
+constexpr u64 BB_RANK_5 = BB_RANK_4 >> 8;
+constexpr u64 BB_RANK_6 = BB_RANK_5 >> 8;
+constexpr u64 BB_RANK_7 = BB_RANK_6 >> 8;
+constexpr u64 BB_RANK_8 = BB_RANK_7 >> 8;
 
-#define BB_FILE_A (0x0101010101010101ULL)
-#define BB_FILE_B (BB_FILE_A << 1)
-#define BB_FILE_C (BB_FILE_B << 1)
-#define BB_FILE_D (BB_FILE_C << 1)
-#define BB_FILE_E (BB_FILE_D << 1)
-#define BB_FILE_F (BB_FILE_E << 1)
-#define BB_FILE_G (BB_FILE_F << 1)
-#define BB_FILE_H (BB_FILE_G << 1)
+constexpr u64 BB_FILE_A = 0x0101010101010101ULL;
+constexpr u64 BB_FILE_B = BB_FILE_A << 1;
+constexpr u64 BB_FILE_C = BB_FILE_B << 1;
+constexpr u64 BB_FILE_D = BB_FILE_C << 1;
+constexpr u64 BB_FILE_E = BB_FILE_D << 1;
+constexpr u64 BB_FILE_F = BB_FILE_E << 1;
+constexpr u64 BB_FILE_G = BB_FILE_F << 1;
+constexpr u64 BB_FILE_H = BB_FILE_G << 1;
 
-#define BB_WHITE_SQUARES (0xAA55AA55AA55AA55ULL)
-#define BB_BLACK_SQUARES (~BB_WHITE_SQUARES)
+constexpr u64 BB_WHITE_SQUARES = 0xAA55AA55AA55AA55ULL;
+constexpr u64 BB_BLACK_SQUARES = ~BB_WHITE_SQUARES;
 /* }}} */
 
 void bb_init(void);
