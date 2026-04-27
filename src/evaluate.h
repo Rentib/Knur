@@ -1,9 +1,9 @@
 #ifndef KNUR_EVALUATE_H_
 #define KNUR_EVALUATE_H_
 
-#include "knur.h"
 #include "position.h"
 
+#if !USE_NNUE
 struct eval_params {
 	int piece_value[6];
 
@@ -86,9 +86,10 @@ struct eval_trace {
 extern struct eval_trace eval_trace;
 #endif
 
+extern struct eval_params eval_params;
+#endif
+
 int evaluate(const struct position *position);
 void evaluate_init(void);
-
-extern struct eval_params eval_params;
 
 #endif /* KNUR_EVALUATE_H_ */

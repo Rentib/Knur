@@ -1,7 +1,21 @@
 #include "evaluate.h"
+#include "position.h"
+
+#if USE_NNUE
+
+#include "nn/nnue.h"
+
+int evaluate(const struct position *pos)
+{
+	return nnue_evaluate(pos->stm, &pos->st->acc);
+}
+
+void evaluate_init(void) {}
+
+#else
+
 #include "bitboards.h"
 #include "knur.h"
-#include "position.h"
 #include "transposition.h"
 
 #define S(mg, eg)  ((int)((unsigned)(eg) << 16) + (mg))
@@ -195,8 +209,7 @@ struct eval_params eval_params = {
 
 #ifdef TUNE
 struct eval_trace eval_trace;
-#define TRACE_RESET()                                                          \
-	eval_trace = (struct eval_trace) { 0 }
+#define TRACE_RESET()                eval_trace = (struct eval_trace){0}
 #define TRACE_INC(field, color, cnt) eval_trace.field[color] += cnt
 #define TRACE_SET(field, val)        eval_trace.field = val
 #else
@@ -566,3 +579,5 @@ void evaluate_init(void)
 	BB_SET(mask_center_pawn, SQ_D5);
 	BB_SET(mask_center_pawn, SQ_E5);
 }
+
+#endif

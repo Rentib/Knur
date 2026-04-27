@@ -55,7 +55,7 @@ void uci([[maybe_unused]] struct position *pos, [[maybe_unused]] char *fmt)
 {
 	char *spin = "option name %s type spin default %d min %d max %d\n";
 
-	printf("id name Knur\n");
+	printf("id name Knur " VERSION "\n");
 	printf("id author Stanisław Bitner\n");
 
 	/*printf("option name ...");*/

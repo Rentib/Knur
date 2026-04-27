@@ -1,12 +1,20 @@
-VERSION = 0.1
+VERSION = 2.0
 
-CFLAGS  = -std=c2x -Wall -Wextra -Werror -pedantic -pthread \
-		  -DVERSION=\"$(VERSION)\"
-LDFLAGS = -pthread
-CC      = clang
+CFLAGS   = -std=c2x -Wall -Wextra -Werror -pedantic -pthread \
+		   -DVERSION=\"$(VERSION)\"
+LDFLAGS  = -pthread
+CC       = clang
+EXE      = knur$(VERSION)
+EVALFILE = net.nnue
+
+ifdef EVALFILE
+	CFLAGS += -DUSE_NNUE=1 -DEVALFILE=\"$(EVALFILE)\"
+else
+	CFLAGS += -DUSE_NNUE=0
+endif
 
 REQ = bitboards evaluate movegen movepicker perft position search transposition \
-	  uci util
+	  uci util nn/nnue
 
 all: CFLAGS += -O3 -ffast-math
 all: CFLAGS += -march=native -m64 -mpopcnt
@@ -39,7 +47,10 @@ knur.o: knur.c knur.h $(REQ:=.h)
 	$(CC) -o $@ -c $(CFLAGS) $<
 
 knur: knur.o $(REQ:=.o)
-	$(CC) -o $@ $(REQ:=.o) knur.o $(LDFLAGS)
+	$(CC) -o $(EXE) $(REQ:=.o) knur.o $(LDFLAGS)
+
+install: all
+	cp -f $(EXE) ~/.local/bin/chess_engines/
 
 clean:
-	rm -f knur knur.o tune tune.o $(REQ:=.o)
+	rm -f $(EXE) knur.o tune tune.o $(REQ:=.o)

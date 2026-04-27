@@ -2,6 +2,9 @@
 #define KNUR_POSITION_H_
 
 #include "knur.h"
+#if USE_NNUE
+#include "nn/nnue.h"
+#endif
 
 struct position_state {
 	enum square enpas;   /* enpassant square */
@@ -9,6 +12,10 @@ struct position_state {
 	int fifty_rule;      /* fifty move rule */
 	enum piece captured; /* captured piece */
 	u64 checkers;        /* bitboard of pieces giving a check */
+
+#if USE_NNUE
+	struct accumulator acc; /* accumulator stack for nnue */
+#endif
 };
 
 struct position {
@@ -19,7 +26,9 @@ struct position {
 	int game_ply;                /* game halfmove counter */
 	u64 reps[MAX_MOVES];         /* [game ply] repetition array */
 	u64 key;                     /* zobrist hash */
-	u64 pawn_key;                /* zobrist hash for pawns */
+#if !USE_NNUE
+	u64 pawn_key; /* zobrist hash for pawns */
+#endif
 
 	struct position_state state_stack[MAX_MOVES]; /* state stack */
 	struct position_state *st;                    /* state of position */

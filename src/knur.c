@@ -2,6 +2,7 @@
 
 #include "bitboards.h"
 #include "evaluate.h"
+#include "nn/nnue.h"
 #include "position.h"
 #include "transposition.h"
 #include "uci.h"
@@ -11,6 +12,7 @@ int main(void)
 	printf("Knur " VERSION " by Stanislaw Bitner\n");
 	bb_init();
 	evaluate_init();
+	nnue_init();
 	pos_init();
 	tt_init(TT_DEFAULT_SIZE);
 	pht_init(2);

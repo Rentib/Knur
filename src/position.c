@@ -37,8 +37,12 @@ void add_enpas(struct position *pos, enum square sq)
 void add_piece(struct position *pos, enum piece pc, enum square sq)
 {
 	pos->key ^= zobrist.piece_square[pc][sq];
+#if USE_NNUE
+	acc_add(&pos->st->acc, pc, sq);
+#else
 	if (PIECE_TYPE(pc) == PAWN)
 		pos->pawn_key ^= zobrist.piece_square[pc][sq];
+#endif
 	BB_SET(pos->color[PIECE_COLOR(pc)], sq);
 	BB_SET(pos->piece[PIECE_TYPE(pc)], sq);
 	BB_SET(pos->piece[ALL_PIECES], sq);
@@ -56,8 +60,12 @@ void del_enpas(struct position *pos)
 void del_piece(struct position *pos, enum piece pc, enum square sq)
 {
 	pos->key ^= zobrist.piece_square[pc][sq];
+#if USE_NNUE
+	acc_sub(&pos->st->acc, pc, sq);
+#else
 	if (PIECE_TYPE(pc) == PAWN)
 		pos->pawn_key ^= zobrist.piece_square[pc][sq];
+#endif
 	BB_XOR(pos->color[PIECE_COLOR(pc)], sq);
 	BB_XOR(pos->piece[PIECE_TYPE(pc)], sq);
 	BB_XOR(pos->piece[ALL_PIECES], sq);
@@ -121,6 +129,10 @@ void pos_set_fen(struct position *pos, const char *fen)
 	pos->st->captured = NO_PIECE;
 	pos->st->checkers = 0;
 	pos->st = pos->state_stack;
+
+#if USE_NNUE
+	acc_init(&pos->st->acc);
+#endif
 
 	str = strdup(fen);
 	token = strtok_r(str, " ", &saveptr);

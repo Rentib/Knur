@@ -2,8 +2,7 @@
 UCI-compliant chess engine, written from scratch in C.
 
 ## Strength
-Around 2394 elo on
-[CCRL](https://computerchess.org.uk/ccrl/4040/rating_list_all.html).
+Around 2416 elo on [CCRL](https://computerchess.org.uk/ccrl/4040/rating_list_all.html).
 
 ## Features
 - [Negamax](https://www.chessprogramming.org/Negamax) with [PVS](https://www.chessprogramming.org/Principal_Variation_Search)
@@ -20,8 +19,9 @@ Around 2394 elo on
     - [Null Move Pruning](https://www.chessprogramming.org/Null_Move_Pruning)
     - [Reverse Futility Pruning](https://www.chessprogramming.org/Reverse_Futility_Pruning)
 - Evaluation
-    - [Tapered Eval](https://www.chessprogramming.org/Tapered_Eval)
-    - [Pawn Hash Table](https://www.chessprogramming.org/Pawn_Hash_Table)
+    - [NNUE](https://www.chessprogramming.org/NNUE): `(768->256)x2->1`
+    - ~~[Tapered Eval](https://www.chessprogramming.org/Tapered_Eval)~~
+    - ~~[Pawn Hash Table](https://www.chessprogramming.org/Pawn_Hash_Table)~~
 
 ## Building
 To build Knur run:

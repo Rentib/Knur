@@ -129,6 +129,12 @@ constexpr int UNKNOWN = CHECKMATE + 1;
 #define MATED_IN(n)    (-CHECKMATE + (n))
 #define IS_MATE(score) (ABS(score) >= CHECKMATE - MAX_PLY)
 
+constexpr size_t NN_INPUT_SIZE = 64 * 6 * 2;
+constexpr size_t NN_HIDDEN_SIZE = 256;
+
+#define ALIGN_ON 64
+#define ALIGN    __attribute__((aligned(ALIGN_ON)))
+
 #define INLINE static inline __attribute__((always_inline))
 
 #endif /* KNUR_H_ */
