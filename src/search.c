@@ -1,3 +1,4 @@
+#include <math.h>
 #include <pthread.h>
 #include <setjmp.h>
 #include <stdatomic.h>
@@ -32,6 +33,8 @@ struct search_params search_params = {
     .rfp_depth = 3,
     .rfp_margin = 47,
     .nmp_depth = 3,
+    .lmr_base = 0.7844,
+    .lmr_scale = 2.4696,
 };
 static struct search_params *sp = &search_params;
 
@@ -41,6 +44,7 @@ static u64 stop_time;
 static pthread_t thrd;
 static jmp_buf jbuffer;
 static enum move counters[12][SQUARE_NB];
+static int lmr_reduction[MAX_PLY][64];
 
 INLINE bool abort_search(void)
 {
@@ -89,7 +93,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 {
 	bool isroot = !ss->ply;
 	bool pvnode = beta - alpha != 1;
-	bool in_check = !!pos->st->checkers, improving;
+	bool in_check = !!pos->st->checkers, improving, is_quiet, full_search;
 	int score, bestscore = -CHECKMATE;
 	enum move move, bestmove = MOVE_NONE;
 	enum move hashmove = MOVE_NONE;
@@ -189,21 +193,48 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 
 		movecount++;
 
+		is_quiet = pos_is_quiet(pos, move);
 		ss->move = move;
 		pos_do_move(pos, move);
 
-		/* Principal Variation Search.
-		 * Do zero window search for moves other than the "best" one.
+		/* Late Move Reductions.
+		 * Reduce the depth of search for moves other than the first
+		 * one. This assumes the move ordering is so good that the first
+		 * move is the best one.
 		 */
-		if (movecount == 1) {
-			score = -negamax(pos, ss + 1, -beta, -alpha, depth - 1);
+		if (depth > 2 && movecount > 1) {
+			/* Quiet Late Move Reductions (~32 elo). */
+			if (is_quiet) {
+				R = lmr_reduction[MIN(depth, MAX_PLY)]
+						 [MIN(movecount, 64)];
+
+				R += !pvnode + !improving;
+				R += in_check &&
+				     PIECE_TYPE(pos->board[MOVE_FROM(move)]) ==
+					 KING;
+				R -= mp.stage < MP_STAGE_QUIET;
+
+				/* TODO: adjust based on history scores */
+			}
+
+			R = MAX(1, MIN(depth - 1, R));
+
+			score = -negamax(pos, ss + 1, -(alpha + 1), -alpha,
+					 depth - R);
+
+			/* TODO: adjust research depth based on results */
+
+			full_search = score > alpha && R > 1;
 		} else {
+			full_search = !pvnode || movecount > 1;
+		}
+
+		if (full_search)
 			score = -negamax(pos, ss + 1, -(alpha + 1), -alpha,
 					 depth - 1);
-			if (pvnode && score > alpha)
-				score = -negamax(pos, ss + 1, -beta, -alpha,
-						 depth - 1);
-		}
+
+		if (pvnode && (movecount == 1 || score > alpha))
+			score = -negamax(pos, ss + 1, -beta, -alpha, depth - 1);
 
 		pos_undo_move(pos, move);
 
@@ -213,7 +244,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 		bestmove = move;
 
 		if (score >= beta) {
-			if (pos_is_quiet(pos, move)) {
+			if (is_quiet) {
 				/* killer heuristic */
 				if (move != ss->killer[0]) {
 					ss->killer[1] = ss->killer[0];
@@ -365,6 +396,16 @@ void search_stop(void)
 	if (!thrd_joined)
 		pthread_join(thrd, nullptr);
 	thrd_joined = true;
+}
+
+void search_init(void)
+{
+	for (int depth = 0; depth < MAX_PLY; depth++) {
+		for (int movecount = 0; movecount < 64; movecount++)
+			lmr_reduction[depth][movecount] =
+			    sp->lmr_base +
+			    log(depth) * log(movecount) / sp->lmr_scale;
+	}
 }
 
 int search_eval(struct position *pos)
