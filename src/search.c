@@ -93,12 +93,15 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 {
 	bool isroot = !ss->ply;
 	bool pvnode = beta - alpha != 1;
-	bool in_check = !!pos->st->checkers, improving, is_quiet, full_search;
-	int score, bestscore = -CHECKMATE;
+	bool in_check = !!pos->st->checkers;
+	bool improving, is_quiet, full_search;
+	int score = -CHECKMATE;
+	int bestscore = -CHECKMATE;
+	int orig_alpha = alpha;
+	int eval, R, movecount = 0;
 	enum move move, bestmove = MOVE_NONE;
 	enum move hashmove = MOVE_NONE;
 	struct move_picker mp;
-	int eval, R, movecount = 0;
 	enum square prev_to;
 
 	ss->move = MOVE_NONE;
@@ -274,9 +277,9 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	 * depth.
 	 */
 	tt_store(pos->key, depth,
-		 bestscore <= alpha  ? TT_ALPHA
-		 : bestscore >= beta ? TT_BETA
-				     : TT_PV,
+		 bestscore <= orig_alpha ? TT_ALPHA
+		 : bestscore >= beta     ? TT_BETA
+					 : TT_PV,
 		 bestscore, bestmove);
 
 	return bestscore;
