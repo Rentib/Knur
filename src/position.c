@@ -253,7 +253,9 @@ void pos_do_move(struct position *pos, enum move m)
 	del_enpas(pos);
 
 	if (PIECE_TYPE(pc) == PAWN) {
-		if (from + 2 * up == to) {
+		if (from + 2 * up == to &&
+		    (bb_pawn_attacks(us, to + (us == WHITE ? SOUTH : NORTH)) &
+		     pos->piece[PAWN] & pos->color[them])) {
 			add_enpas(pos, to + (us == WHITE ? SOUTH : NORTH));
 		} else if (MOVE_TYPE(m) == MT_PROMOTION) {
 			del_piece(pos, pc, to);
