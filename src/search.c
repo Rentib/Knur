@@ -56,7 +56,7 @@ INLINE bool abort_search(void)
 static int quiescence(struct position *pos, struct search_stack *ss, int alpha,
 		      int beta)
 {
-	int score = evaluate(pos);
+	int value = evaluate(pos);
 	enum move move;
 	struct move_picker mp;
 
@@ -64,10 +64,10 @@ static int quiescence(struct position *pos, struct search_stack *ss, int alpha,
 		longjmp(jbuffer, 1);
 	nodes++;
 
-	if (score >= beta)
+	if (value >= beta)
 		return beta;
-	if (score > alpha)
-		alpha = score;
+	if (value > alpha)
+		alpha = value;
 
 	mp_init(&mp, pos, MOVE_NONE, ss, MOVE_NONE);
 	while ((move = mp_next(&mp, pos, true)) != MOVE_NONE) {
@@ -76,13 +76,13 @@ static int quiescence(struct position *pos, struct search_stack *ss, int alpha,
 
 		ss->move = move;
 		pos_do_move(pos, move);
-		score = -quiescence(pos, ss, -beta, -alpha);
+		value = -quiescence(pos, ss, -beta, -alpha);
 		pos_undo_move(pos, move);
 
-		if (score >= beta)
+		if (value >= beta)
 			return beta;
-		if (score > alpha)
-			alpha = score;
+		if (value > alpha)
+			alpha = value;
 	}
 
 	return alpha;
@@ -94,11 +94,13 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	bool isroot = !ss->ply;
 	bool pvnode = beta - alpha != 1;
 	bool in_check = !!pos->st->checkers;
-	bool improving, is_quiet, full_search;
-	int score = -CHECKMATE;
-	int bestscore = -CHECKMATE;
-	int orig_alpha = alpha;
+	bool tt_hit, improving, is_quiet, full_search;
+	int value = -CHECKMATE;
+	int best_value = -CHECKMATE;
 	int eval, R, movecount = 0;
+	int orig_alpha = alpha;
+	int tt_depth, tt_value = UNKNOWN;
+	enum tt_bound tt_bound = TT_NONE;
 	enum move move, bestmove = MOVE_NONE;
 	enum move hashmove = MOVE_NONE;
 	struct move_picker mp;
@@ -149,13 +151,16 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	/* Probe the Transposition Table.
 	 * Get the hashmove and possibly get a TT cutoff.
 	 */
-	if (tt_probe(pos->key, depth, alpha, beta, &score, &hashmove)) {
-		/* tt cutoff */
-		if (!pvnode && pos_is_pseudo_legal(pos, hashmove) &&
-		    pos_is_legal(pos, hashmove))
-			return IS_MATE(score)
-				 ? score < 0 ? score + ss->ply : score - ss->ply
-				 : score;
+	tt_hit = tt_probe(pos->key, &tt_depth, &tt_bound, &tt_value, &hashmove);
+	if (tt_hit && !pvnode && depth <= tt_depth && tt_value != UNKNOWN &&
+	    hashmove != MOVE_NONE &&
+	    ((tt_bound == TT_EXACT) ||
+	     (tt_bound == TT_UPPER && tt_value <= alpha) ||
+	     (tt_bound == TT_LOWER && tt_value >= beta)) &&
+	    pos_is_pseudo_legal(pos, hashmove) && pos_is_legal(pos, hashmove)) {
+		return IS_MATE(tt_value) ? tt_value < 0 ? tt_value + ss->ply
+							: tt_value - ss->ply
+					 : tt_value;
 	}
 
 	eval = ss->eval = in_check ? UNKNOWN : evaluate(pos);
@@ -180,11 +185,11 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 		R = 3 + (depth >= 8 && BB_SEVERAL(pos_non_pawn(pos, pos->stm)));
 		ss->move = MOVE_NULL;
 		pos_do_null_move(pos);
-		score = -negamax(pos, ss + 1, -beta, -alpha, depth - R - 1);
+		value = -negamax(pos, ss + 1, -beta, -alpha, depth - R - 1);
 		pos_undo_null_move(pos);
 
-		if (score >= beta)
-			return score;
+		if (value >= beta)
+			return value;
 	}
 
 	mp_init(&mp, pos, hashmove, ss,
@@ -222,31 +227,31 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 
 			R = MAX(1, MIN(depth - 1, R));
 
-			score = -negamax(pos, ss + 1, -(alpha + 1), -alpha,
+			value = -negamax(pos, ss + 1, -(alpha + 1), -alpha,
 					 depth - R);
 
 			/* TODO: adjust research depth based on results */
 
-			full_search = score > alpha && R > 1;
+			full_search = value > alpha && R > 1;
 		} else {
 			full_search = !pvnode || movecount > 1;
 		}
 
 		if (full_search)
-			score = -negamax(pos, ss + 1, -(alpha + 1), -alpha,
+			value = -negamax(pos, ss + 1, -(alpha + 1), -alpha,
 					 depth - 1);
 
-		if (pvnode && (movecount == 1 || score > alpha))
-			score = -negamax(pos, ss + 1, -beta, -alpha, depth - 1);
+		if (pvnode && (movecount == 1 || value > alpha))
+			value = -negamax(pos, ss + 1, -beta, -alpha, depth - 1);
 
 		pos_undo_move(pos, move);
 
-		if (score <= bestscore)
+		if (value <= best_value)
 			continue;
-		bestscore = score;
+		best_value = value;
 		bestmove = move;
 
-		if (score >= beta) {
+		if (value >= beta) {
 			if (is_quiet) {
 				/* killer heuristic */
 				if (move != ss->killer[0]) {
@@ -260,8 +265,8 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 			break;
 		}
 
-		if (score > alpha) {
-			alpha = score;
+		if (value > alpha) {
+			alpha = value;
 
 			*ss->pv = bestmove;
 			memcpy(ss->pv + 1, (ss + 1)->pv,
@@ -270,19 +275,19 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	}
 
 	if (!movecount)
-		bestscore = in_check ? MATED_IN(ss->ply) : 0;
+		best_value = in_check ? MATED_IN(ss->ply) : 0;
 
 	/* Store results in the Transposition Table.
-	 * Store the hashmove and the score for the position at the current
+	 * Store the hashmove and the value of the position at the current
 	 * depth.
 	 */
 	tt_store(pos->key, depth,
-		 bestscore <= orig_alpha ? TT_ALPHA
-		 : bestscore >= beta     ? TT_BETA
-					 : TT_PV,
-		 bestscore, bestmove);
+		 best_value <= orig_alpha ? TT_UPPER
+		 : best_value >= beta     ? TT_LOWER
+					  : TT_EXACT,
+		 best_value, bestmove);
 
-	return bestscore;
+	return best_value;
 }
 
 void *search(void *arg)
@@ -292,7 +297,7 @@ void *search(void *arg)
 	struct search_limits *limits = starg->limits;
 	struct search_stack search_stack[MAX_PLY + 2] = {0};
 	struct search_stack *ss = search_stack + 2;
-	int i, depth, score;
+	int i, depth, value;
 	enum move bestmove;
 	int alpha = -CHECKMATE, beta = CHECKMATE, window;
 
@@ -333,16 +338,16 @@ void *search(void *arg)
 
 		window = sp->window_size;
 		if (depth >= sp->window_depth) {
-			alpha = MAX(-CHECKMATE, score + window);
-			beta = MIN(CHECKMATE, score - window);
+			alpha = MAX(-CHECKMATE, value + window);
+			beta = MIN(CHECKMATE, value - window);
 		}
 
 		while (true) {
-			score = negamax(pos, ss, alpha, beta, depth);
-			if (score <= alpha) {
+			value = negamax(pos, ss, alpha, beta, depth);
+			if (value <= alpha) {
 				beta = (alpha + beta) / 2;
 				alpha = MAX(-CHECKMATE, alpha - window);
-			} else if (score >= beta) {
+			} else if (value >= beta) {
 				beta = MIN(CHECKMATE, beta - window);
 			} else {
 				break;
@@ -353,12 +358,12 @@ void *search(void *arg)
 		bestmove = *ss->pv;
 
 		printf("info depth %d ", depth);
-		if (IS_MATE(score))
+		if (IS_MATE(value))
 			printf("score mate %d ",
-			       score > 0 ? +(CHECKMATE - score + 1) / 2
-					 : -(CHECKMATE + score + 1) / 2);
+			       value > 0 ? +(CHECKMATE - value + 1) / 2
+					 : -(CHECKMATE + value + 1) / 2);
 		else
-			printf("score cp %d ", score);
+			printf("score cp %d ", value);
 		printf("nodes %zu ", nodes);
 		printf("time %zu ", gettime() - limits->start);
 		printf("pv");
@@ -415,7 +420,7 @@ int search_eval(struct position *pos)
 {
 	struct search_stack search_stack[MAX_PLY + 2] = {0};
 	struct search_stack *ss = search_stack + 2;
-	int score, i;
+	int value, i;
 
 	ss[-2] = ss[-1] = (struct search_stack){
 	    .eval = UNKNOWN,
@@ -428,11 +433,11 @@ int search_eval(struct position *pos)
 	}
 
 	running = true;
-	score = quiescence(pos, ss, -CHECKMATE, CHECKMATE);
+	value = quiescence(pos, ss, -CHECKMATE, CHECKMATE);
 	running = false;
 
 	for (i = 0; i < MAX_PLY; i++)
 		free((ss + i)->pv);
 
-	return score;
+	return value;
 }

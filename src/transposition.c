@@ -9,15 +9,15 @@
 struct __attribute__((packed)) tt_entry {
 	u64 key;
 	int depth : 8;
-	enum tt_type type : 2;
-	int16_t score;
+	enum tt_bound bound : 2;
+	int16_t value;
 	enum move move;
 };
 
 struct __attribute__((packed)) pht_entry {
 	u64 wpawns : 48;
 	u64 bpawns : 48;
-	int score : 32;
+	int value : 32;
 };
 
 struct hash_table {
@@ -55,29 +55,25 @@ void tt_clear(void)
 	memset(tt.tt_entries, 0, tt.size * sizeof(struct tt_entry));
 }
 
-bool tt_probe(u64 key, int depth, int alpha, int beta, int *score,
-	      enum move *move)
+bool tt_probe(u64 key, int *depth, enum tt_bound *bound, int *value, enum move *move)
 {
 	struct tt_entry *et = &tt.tt_entries[key >> tt.shift];
 
-	*score = UNKNOWN;
+	*value = UNKNOWN;
 	*move = MOVE_NONE;
 
 	if (key == et->key) {
+		*depth = et->depth;
+		*bound = et->bound;
+		*value = et->value;
 		*move = et->move;
-		if ((depth <= et->depth) &&
-		    ((et->type == TT_PV) ||
-		     (et->type == TT_ALPHA && et->score <= alpha) ||
-		     (et->type == TT_BETA && et->score >= beta))) {
-			*score = et->score;
-			return true;
-		}
+		return true;
 	}
 
 	return false;
 }
 
-void tt_store(u64 key, int depth, enum tt_type type, int score, enum move move)
+void tt_store(u64 key, int depth, enum tt_bound bound, int value, enum move move)
 {
 	struct tt_entry *et = &tt.tt_entries[key >> tt.shift];
 
@@ -86,8 +82,8 @@ void tt_store(u64 key, int depth, enum tt_type type, int score, enum move move)
 
 	et->key = key;
 	et->depth = depth;
-	et->type = type;
-	et->score = score;
+	et->bound = bound;
+	et->value = value;
 	et->move = move;
 }
 
@@ -114,23 +110,23 @@ void pht_clear(void)
 	memset(pht.pht_entries, 0, pht.size * sizeof(struct pht_entry));
 }
 
-bool pht_probe(u64 key, u64 wpawns, u64 bpawns, int *score)
+bool pht_probe(u64 key, u64 wpawns, u64 bpawns, int *value)
 {
 	struct pht_entry *et = &pht.pht_entries[key >> pht.shift];
 
 	if (wpawns == et->wpawns << 8 && bpawns == et->bpawns << 8) {
-		*score = et->score;
+		*value = et->value;
 		return true;
 	}
 
 	return false;
 }
 
-void pht_store(u64 key, u64 wpawns, u64 bpawns, int score)
+void pht_store(u64 key, u64 wpawns, u64 bpawns, int value)
 {
 	struct pht_entry *et = &pht.pht_entries[key >> pht.shift];
 
 	et->wpawns = wpawns >> 8;
 	et->bpawns = bpawns >> 8;
-	et->score = score;
+	et->value = value;
 }
