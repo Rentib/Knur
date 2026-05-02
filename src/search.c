@@ -9,6 +9,7 @@
 
 #include "bitboards.h"
 #include "evaluate.h"
+#include "history.h"
 #include "knur.h"
 #include "movepicker.h"
 #include "position.h"
@@ -43,7 +44,6 @@ static atomic_bool running = false, thrd_joined = true;
 static u64 stop_time;
 static pthread_t thrd;
 static jmp_buf jbuffer;
-static enum move counters[12][SQUARE_NB];
 static int lmr_reduction[MAX_PLY][64];
 
 INLINE bool abort_search(void)
@@ -69,7 +69,7 @@ static int quiescence(struct position *pos, struct search_stack *ss, int alpha,
 	if (value > alpha)
 		alpha = value;
 
-	mp_init(&mp, pos, MOVE_NONE, ss, MOVE_NONE);
+	mp_init(&mp, pos, MOVE_NONE, ss);
 	while ((move = mp_next(&mp, pos, true)) != MOVE_NONE) {
 		if (!pos_is_legal(pos, move))
 			continue;
@@ -104,7 +104,6 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	enum move move, bestmove = MOVE_NONE;
 	enum move hashmove = MOVE_NONE;
 	struct move_picker mp;
-	enum square prev_to;
 
 	ss->move = MOVE_NONE;
 	*ss->pv = MOVE_NONE;
@@ -165,14 +164,14 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 
 	eval = ss->eval = in_check ? UNKNOWN : evaluate(pos);
 	improving = in_check && eval > (ss - 2)->eval;
-	prev_to = (ss - 1)->move != MOVE_NONE && (ss - 1)->move != MOVE_NULL
-		    ? MOVE_TO((ss - 1)->move)
-		    : SQ_NONE;
+
+	if (pvnode || in_check)
+		goto forward_pruning_end;
 
 	/* Reverse Futility Pruning (~107 elo).
 	 * Eval is so high that we assume that it won't get below beta.
 	 */
-	if (!pvnode && !in_check && depth <= sp->rfp_depth &&
+	if (depth <= sp->rfp_depth &&
 	    eval - sp->rfp_margin * MAX(0, depth - improving) >= beta)
 		return eval;
 
@@ -180,8 +179,8 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	 * Position is so good that we can give the enemy a free move and still
 	 * be winning.
 	 */
-	if (!pvnode && !in_check && (ss - 1)->move != MOVE_NULL &&
-	    depth >= sp->nmp_depth && pos_non_pawn(pos, pos->stm)) {
+	if ((ss - 1)->move != MOVE_NULL && depth >= sp->nmp_depth &&
+	    pos_non_pawn(pos, pos->stm)) {
 		R = 3 + (depth >= 8 && BB_SEVERAL(pos_non_pawn(pos, pos->stm)));
 		ss->move = MOVE_NULL;
 		pos_do_null_move(pos);
@@ -192,9 +191,9 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 			return value;
 	}
 
-	mp_init(&mp, pos, hashmove, ss,
-		prev_to == SQ_NONE ? MOVE_NONE
-				   : counters[pos->board[prev_to]][prev_to]);
+forward_pruning_end:
+
+	mp_init(&mp, pos, hashmove, ss);
 	while ((move = mp_next(&mp, pos, false)) != MOVE_NONE) {
 		if (!pos_is_legal(pos, move))
 			continue;
@@ -210,7 +209,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 		 * one. This assumes the move ordering is so good that the first
 		 * move is the best one.
 		 */
-		if (depth > 2 && movecount > 1) {
+		if (depth >= 2 && movecount > 1) {
 			/* Quiet Late Move Reductions (~32 elo). */
 			if (is_quiet) {
 				R = lmr_reduction[MIN(depth, MAX_PLY)]
@@ -259,8 +258,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 					ss->killer[0] = move;
 				}
 
-				/* countermove heuristic */
-				counters[pos->board[prev_to]][prev_to] = move;
+				history_update(pos, ss, move, depth);
 			}
 			break;
 		}
@@ -302,7 +300,6 @@ void *search(void *arg)
 	int alpha = -CHECKMATE, beta = CHECKMATE, window;
 
 	nodes = 0;
-	memset(counters, MOVE_NONE, sizeof(counters));
 
 	/* initialize search stack */
 	ss[-2] = ss[-1] = (struct search_stack){
@@ -314,6 +311,9 @@ void *search(void *arg)
 		(ss + i)->pv = ecalloc(MAX_PLY - i, sizeof(enum move));
 		(ss + i)->killer[0] = (ss + i)->killer[1] = MOVE_NONE;
 	}
+
+	/* clear move history */
+	history_clear();
 
 	/* clear transposition table */
 	tt_clear();

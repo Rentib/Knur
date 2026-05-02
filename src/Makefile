@@ -1,4 +1,4 @@
-VERSION = 1.2
+VERSION = 1.3
 
 CFLAGS   = -std=c2x -Wall -Wextra -Werror -pedantic -pthread \
 		   -DVERSION=\"$(VERSION)\"
@@ -13,8 +13,8 @@ else
 	CFLAGS += -DUSE_NNUE=0
 endif
 
-REQ = bitboards evaluate movegen movepicker perft position search transposition \
-	  uci util nn/nnue
+REQ = bitboards evaluate history movegen movepicker perft position search \
+      transposition uci util nn/nnue
 
 all: CFLAGS += -O3 -ffast-math
 all: CFLAGS += -march=native -m64 -mpopcnt

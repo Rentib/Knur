@@ -1,15 +1,15 @@
 #include "movepicker.h"
 #include "bitboards.h"
+#include "history.h"
 #include "knur.h"
 #include "movegen.h"
 #include "position.h"
 #include "search.h"
 
 static int see(struct position *position, enum move move);
-static void score_captures(struct move_picker *move_picker,
-			   struct position *position);
-static void sort_moves(struct move_picker *move_picker, enum move *begin,
-		       enum move *end);
+static void score_captures(struct move_picker *move_picker, struct position *position);
+static void score_quiets(struct move_picker *move_picker, struct position *position);
+static void sort_moves(struct move_picker *move_picker, enum move *begin, enum move *end);
 
 static const int mvv[PIECE_TYPE_NB] = {100, 300, 315, 500, 900, 20000, 0};
 
@@ -63,6 +63,18 @@ void score_captures(struct move_picker *mp, struct position *pos)
 		mp->scores[m - mp->moves] = see(pos, *m);
 }
 
+void score_quiets(struct move_picker *mp, struct position *pos)
+{
+	enum move *m;
+	enum square from, to;
+
+	for (m = mp->moves; m != mp->quiets; m++) {
+		from = MOVE_FROM(*m);
+		to = MOVE_TO(*m);
+		mp->scores[m - mp->moves] = history.hh[pos->stm][from][to];
+	}
+}
+
 void sort_moves(struct move_picker *mp, enum move *begin, enum move *end)
 {
 	enum move *mit, *m, mtmp;
@@ -80,13 +92,19 @@ void sort_moves(struct move_picker *mp, enum move *begin, enum move *end)
 }
 
 void mp_init(struct move_picker *mp, struct position *pos, enum move hashmove,
-	     struct search_stack *ss, enum move counter)
+	     struct search_stack *ss)
 {
+	enum square prev_to;
+
 	mp->stage = MP_STAGE_HASH + !pos_is_pseudo_legal(pos, hashmove);
 	mp->hashmove = hashmove;
 	mp->killer[0] = ss->killer[0];
 	mp->killer[1] = ss->killer[1];
-	mp->counter = counter;
+
+	prev_to = (ss - 1)->move != MOVE_NONE && (ss - 1)->move != MOVE_NULL
+		    ? MOVE_TO((ss - 1)->move)
+		    : SQ_NONE;
+	mp->counter = prev_to == SQ_NONE ? MOVE_NONE : history.cmh[pos->board[prev_to]][prev_to];
 }
 
 enum move mp_next(struct move_picker *mp, struct position *pos, bool skip_quiet)
@@ -140,6 +158,8 @@ enum move mp_next(struct move_picker *mp, struct position *pos, bool skip_quiet)
 	case MP_STAGE_GENERATE_QUIET:
 		if (!skip_quiet) {
 			mp->quiets = mg_generate(MGT_QUIET, mp->captures, pos);
+			score_quiets(mp, pos);
+			sort_moves(mp, mp->captures, mp->quiets);
 			mp->stage = MP_STAGE_QUIET;
 		}
 		[[fallthrough]];

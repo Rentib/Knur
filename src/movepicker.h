@@ -29,8 +29,7 @@ struct move_picker {
 };
 
 void mp_init(struct move_picker *mp, struct position *position,
-	     enum move hashmove, struct search_stack *search_stack,
-	     enum move counter);
+	     enum move hashmove, struct search_stack *search_stack);
 enum move mp_next(struct move_picker *mp, struct position *position,
 		  bool skip_quiet);
 
