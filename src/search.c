@@ -22,10 +22,8 @@ struct arg {
 	struct search_limits *limits;
 };
 
-static int quiescence(struct position *position,
-		      struct search_stack *search_stack, int alpha, int beta);
-static int negamax(struct position *position, struct search_stack *search_stack,
-		   int alpha, int beta, int depth);
+static int quiescence(struct position *position, struct search_stack *search_stack, int alpha, int beta);
+static int negamax(struct position *position, struct search_stack *search_stack, int alpha, int beta, int depth);
 static void *search(void *arg);
 
 struct search_params search_params = {
@@ -163,6 +161,17 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	}
 
 	eval = ss->eval = in_check ? UNKNOWN : evaluate(pos);
+
+	/* Internal Iterative deepening (~13 elo).
+	 * If we haven't found a hashmove for the position, it usually is a good
+	 * idea to search the current position with shallower depth and get its
+	 * best move. At the same time we can get a better eval of the position.
+	 */
+	if (!tt_hit && depth >= 6 && (pvnode /* || cutnode */)) {
+		eval = negamax(pos, ss, alpha, beta, depth * 2 / 3);
+		tt_probe(pos->key, &tt_depth, &tt_bound, &tt_value, &hashmove);
+	}
+
 	improving = in_check && eval > (ss - 2)->eval;
 
 	if (pvnode || in_check)
