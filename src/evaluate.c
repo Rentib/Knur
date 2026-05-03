@@ -1,3 +1,4 @@
+#include "bitboards.h"
 #include "evaluate.h"
 #include "position.h"
 
@@ -7,14 +8,15 @@
 
 int evaluate(const struct position *pos)
 {
-	return nnue_evaluate(pos->stm, &pos->st->acc);
+	size_t pieces = BB_POPCOUNT(pos->piece[ALL_PIECES]);
+	size_t bucket = MIN((63 - pieces) * (32 - pieces) / 225, 7);
+	return nnue_evaluate(pos->stm, &pos->st->acc, bucket);
 }
 
 void evaluate_init(void) {}
 
 #else
 
-#include "bitboards.h"
 #include "knur.h"
 #include "transposition.h"
 

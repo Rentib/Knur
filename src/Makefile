@@ -1,4 +1,4 @@
-VERSION = 1.4
+VERSION = 1.5
 
 CFLAGS   = -std=c2x -Wall -Wextra -Werror -pedantic -pthread \
 		   -DVERSION=\"$(VERSION)\"

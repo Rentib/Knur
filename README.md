@@ -19,7 +19,7 @@ Around 2416 elo on [CCRL](https://computerchess.org.uk/ccrl/4040/rating_list_all
     - [Null Move Pruning](https://www.chessprogramming.org/Null_Move_Pruning)
     - [Reverse Futility Pruning](https://www.chessprogramming.org/Reverse_Futility_Pruning)
 - Evaluation
-    - [NNUE](https://www.chessprogramming.org/NNUE): `(768->256)x2->1`
+    - [NNUE](https://www.chessprogramming.org/NNUE): `(768->1536)x2->1x8`
     - ~~[Tapered Eval](https://www.chessprogramming.org/Tapered_Eval)~~
     - ~~[Pawn Hash Table](https://www.chessprogramming.org/Pawn_Hash_Table)~~
 
@@ -36,3 +36,5 @@ make
 - [Stockfish](https://github.com/official-stockfish/Stockfish/)
 - [Berserk](https://github.com/jhonnold/berserk)
 - [Ethereal](https://github.com/AndyGrant/Ethereal/tree/master)
+- [Alexandria](https://github.com/PGG106/Alexandria)
+- [c-chess-cli](https://github.com/lucasart/c-chess-cli)

@@ -130,7 +130,8 @@ constexpr int UNKNOWN = CHECKMATE + 1;
 #define IS_MATE(score) (ABS(score) >= CHECKMATE - MAX_PLY)
 
 constexpr size_t NN_INPUT_SIZE = 64 * 6 * 2;
-constexpr size_t NN_HIDDEN_SIZE = 256;
+constexpr size_t NN_HIDDEN_SIZE = 1536;
+constexpr size_t NN_OUTPUT_BUCKETS = 8;
 
 #define ALIGN_ON 64
 #define ALIGN    __attribute__((aligned(ALIGN_ON)))

@@ -17,8 +17,8 @@ struct accumulator {
 
 extern int16_t NN_HIDDEN_WEIGHTS[NN_INPUT_SIZE][NN_HIDDEN_SIZE];
 extern int16_t NN_HIDDEN_BIAS[NN_HIDDEN_SIZE];
-extern int16_t NN_OUTPUT_WEIGHTS[COLOR_NB * NN_HIDDEN_SIZE];
-extern int16_t NN_OUTPUT_BIAS;
+extern int16_t NN_OUTPUT_WEIGHTS[COLOR_NB * NN_HIDDEN_SIZE * NN_OUTPUT_BUCKETS];
+extern int16_t NN_OUTPUT_BIAS[NN_OUTPUT_BUCKETS];
 
 INLINE struct nnue_index acc_index(enum piece pc, enum square sq)
 {
@@ -58,10 +58,9 @@ INLINE void acc_sub(struct accumulator *acc, enum piece pc, enum square sq)
 		acc->values[1][i] -= NN_HIDDEN_WEIGHTS[idx.b][i];
 }
 
-int nnue_evaluate(enum color stm, const struct accumulator *acc);
+int nnue_evaluate(enum color stm, const struct accumulator *acc, size_t bucket);
 #endif
 
 void nnue_init(void);
-void nnue_free(void);
 
 #endif /* KNUR_NN_EVALUATE_H_ */
