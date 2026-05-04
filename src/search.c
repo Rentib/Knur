@@ -96,7 +96,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	int value = -CHECKMATE;
 	int best_value = -CHECKMATE;
 	int eval, R, movecount = 0;
-	int orig_alpha = alpha;
+	int orig_alpha = alpha, prob_beta;
 	int tt_depth, tt_value = UNKNOWN;
 	enum tt_bound tt_bound = TT_NONE;
 	enum move move, bestmove = MOVE_NONE;
@@ -198,6 +198,51 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 
 		if (value >= beta)
 			return value;
+	}
+
+	/* ProbCut (~9 elo).
+	 * After calculating a and b parameters as well as the standard
+	 * deviation of error e, we can get a high probability of the actual
+	 * value being greater than beta.
+	 * For confidence we use Phi^(-1)(99%) = 2.3263.
+	 *
+	 * v >= beta
+	 * (v' * a + c - beta) / sigma >= -e/sigma
+	 * v' >= (Phi^(-1)(p) * sigma + beta - c) / a
+	 *
+	 * Data gathered from 10^6 positions from selfplay games.
+	 * ==================================================
+	 * REGRESSION: v = v'*a + c + e
+	 * a:           1.096462
+	 * c:          -4.981127
+	 * Sigma:       127.8935
+	 * R2:          0.964498
+	 * ==================================================
+	 */
+	prob_beta = (2.3263 * 127.8935 + beta - -4.981127) / 1.096462;
+	if (depth >= 6 && !IS_MATE(beta) &&
+	    !(tt_hit && tt_depth >= depth - 3 && tt_value < prob_beta)) {
+		mp_init(&mp, pos, hashmove, ss);
+		while ((move = mp_next(&mp, pos, true)) && mp.stage <= MP_STAGE_GOOD_CAPTURES) {
+			if (!pos_is_legal(pos, move))
+				continue;
+
+			pos_do_move(pos, move);
+
+			/* TODO: it might be beneficial to validate with
+			 * quiescence only in case of deep searches */
+			value = -quiescence(pos, ss + 1, -prob_beta, -prob_beta + 1);
+			if (value >= prob_beta)
+				value = -negamax(pos, ss + 1, -prob_beta, -prob_beta + 1, depth - 4);
+
+			pos_undo_move(pos, move);
+
+			if (value >= prob_beta) {
+				if (!tt_hit || tt_depth < depth - 3)
+					tt_store(pos->key, depth - 3, TT_LOWER, value, move);
+				return value;
+			}
+		}
 	}
 
 forward_pruning_end:
