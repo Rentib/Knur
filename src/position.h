@@ -12,10 +12,6 @@ struct position_state {
 	int fifty_rule;      /* fifty move rule */
 	enum piece captured; /* captured piece */
 	u64 checkers;        /* bitboard of pieces giving a check */
-
-#if USE_NNUE
-	struct accumulator acc; /* accumulator stack for nnue */
-#endif
 };
 
 struct position {
@@ -31,7 +27,12 @@ struct position {
 #endif
 
 	struct position_state state_stack[MAX_MOVES]; /* state stack */
-	struct position_state *st;                    /* state of position */
+	struct position_state *st;                    /* position's state */
+
+#if USE_NNUE
+	struct accumulator accumulator_stack[MAX_MOVES]; /* accumulator stack */
+	struct accumulator *acc;                         /* position's accumulator */
+#endif
 };
 
 void pos_init(void);

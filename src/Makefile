@@ -1,4 +1,4 @@
-VERSION = 1.7
+VERSION = 1.8
 EXE     = knur-v$(VERSION)
 
 CFLAGS   = -std=c2x -Wall -Wextra -Werror -pedantic -pthread \

@@ -12,14 +12,11 @@
 #define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
 INLINE void add_enpas(struct position *position, enum square square);
-INLINE void add_piece(struct position *position, enum piece piece,
-		      enum square square);
+INLINE void add_piece(struct position *position, enum piece piece, enum square square);
 INLINE void del_enpas(struct position *position);
-INLINE void del_piece(struct position *position, enum piece piece,
-		      enum square square);
+INLINE void del_piece(struct position *position, enum piece piece, enum square square);
 INLINE void flip_stm(struct position *position);
-INLINE void update_castle(struct position *pos, enum square from,
-			  enum square to);
+INLINE void update_castle(struct position *pos, enum square from, enum square to);
 
 static struct {
 	u64 piece_square[PIECE_NB][SQUARE_NB]; /* [piece][square] */
@@ -37,9 +34,7 @@ void add_enpas(struct position *pos, enum square sq)
 void add_piece(struct position *pos, enum piece pc, enum square sq)
 {
 	pos->key ^= zobrist.piece_square[pc][sq];
-#if USE_NNUE
-	acc_add(&pos->st->acc, pc, sq);
-#else
+#if !USE_NNUE
 	if (PIECE_TYPE(pc) == PAWN)
 		pos->pawn_key ^= zobrist.piece_square[pc][sq];
 #endif
@@ -60,9 +55,7 @@ void del_enpas(struct position *pos)
 void del_piece(struct position *pos, enum piece pc, enum square sq)
 {
 	pos->key ^= zobrist.piece_square[pc][sq];
-#if USE_NNUE
-	acc_sub(&pos->st->acc, pc, sq);
-#else
+#if !USE_NNUE
 	if (PIECE_TYPE(pc) == PAWN)
 		pos->pawn_key ^= zobrist.piece_square[pc][sq];
 #endif
@@ -110,6 +103,7 @@ void pos_set_fen(struct position *pos, const char *fen)
 	char c, *str, *saveptr = nullptr, *token;
 	enum square sq;
 	enum color color;
+	[[maybe_unused]] u64 occ;
 
 	memset(pos, 0, sizeof(struct position));
 
@@ -129,10 +123,6 @@ void pos_set_fen(struct position *pos, const char *fen)
 	pos->st->captured = NO_PIECE;
 	pos->st->checkers = 0;
 	pos->st = pos->state_stack;
-
-#if USE_NNUE
-	acc_init(&pos->st->acc);
-#endif
 
 	str = strdup(fen);
 	token = strtok_r(str, " ", &saveptr);
@@ -200,6 +190,15 @@ void pos_set_fen(struct position *pos, const char *fen)
 	    pos->color[!pos->stm];
 
 	free(str);
+
+#if USE_NNUE
+	pos->acc = pos->accumulator_stack;
+	acc_init(pos->acc);
+	for (occ = pos->piece[ALL_PIECES]; occ; ) {
+		sq = bb_poplsb(&occ);
+		acc_add(pos->acc, pos->board[sq], sq);
+	}
+#endif
 }
 
 void pos_print(const struct position *pos)
@@ -238,6 +237,12 @@ void pos_do_move(struct position *pos, enum move m)
 	const enum piece pc = pos->board[from], captured = pos->board[to];
 	struct position_state *st = pos->st + 1;
 
+#if USE_NNUE
+	struct accumulator *acc = pos->acc + 1;
+	*acc = *pos->acc;
+	pos->acc = acc;
+#endif
+
 	*st = *(pos->st);
 	st->fifty_rule++;
 	if (PIECE_TYPE(pc) == PAWN || captured != NO_PIECE)
@@ -245,10 +250,18 @@ void pos_do_move(struct position *pos, enum move m)
 	st->captured = captured;
 	pos->st = st;
 
-	if (captured != NO_PIECE)
+	if (captured != NO_PIECE) {
 		del_piece(pos, captured, to);
+#if USE_NNUE
+		acc_sub(pos->acc, captured, to);
+#endif
+	}
 	del_piece(pos, pc, from);
 	add_piece(pos, pc, to);
+#if USE_NNUE
+	acc_sub(pos->acc, pc, from);
+	acc_add(pos->acc, pc, to);
+#endif
 
 	del_enpas(pos);
 
@@ -260,18 +273,32 @@ void pos_do_move(struct position *pos, enum move m)
 		} else if (MOVE_TYPE(m) == MT_PROMOTION) {
 			del_piece(pos, pc, to);
 			add_piece(pos, PIECE_MAKE(MOVE_PROMOTION(m), us), to);
+#if USE_NNUE
+			acc_sub(pos->acc, pc, to);
+			acc_add(pos->acc, PIECE_MAKE(MOVE_PROMOTION(m), us), to);
+#endif
 		} else if (MOVE_TYPE(m) == MT_ENPASSANT) {
 			del_piece(pos, PIECE_MAKE(PAWN, them), to - up);
+#if USE_NNUE
+			acc_sub(pos->acc, PIECE_MAKE(PAWN, them), to - up);
+#endif
 		}
 	} else if (PIECE_TYPE(pc) == KING) {
 		if (MOVE_TYPE(m) == MT_CASTLE) {
 			if (to < from) { /* queenside (long) */
-				del_piece(pos, PIECE_MAKE(ROOK, us),
-					  to + 2 * WEST);
+				del_piece(pos, PIECE_MAKE(ROOK, us), to + 2 * WEST);
 				add_piece(pos, PIECE_MAKE(ROOK, us), to + EAST);
+#if USE_NNUE
+				acc_sub(pos->acc, PIECE_MAKE(ROOK, us), to + 2 * WEST);
+				acc_add(pos->acc, PIECE_MAKE(ROOK, us), to + EAST);
+#endif
 			} else { /* kingside (short) */
 				del_piece(pos, PIECE_MAKE(ROOK, us), to + EAST);
 				add_piece(pos, PIECE_MAKE(ROOK, us), to + WEST);
+#if USE_NNUE
+				acc_sub(pos->acc, PIECE_MAKE(ROOK, us), to + EAST);
+				acc_add(pos->acc, PIECE_MAKE(ROOK, us), to + WEST);
+#endif
 			}
 		}
 	}
@@ -313,8 +340,7 @@ void pos_undo_move(struct position *pos, enum move m)
 		if (MOVE_TYPE(m) == MT_CASTLE) {
 			if (to < from) { /* queenside (long) */
 				del_piece(pos, PIECE_MAKE(ROOK, us), to + EAST);
-				add_piece(pos, PIECE_MAKE(ROOK, us),
-					  to + 2 * WEST);
+				add_piece(pos, PIECE_MAKE(ROOK, us), to + 2 * WEST);
 			} else { /* kingside (short) */
 				del_piece(pos, PIECE_MAKE(ROOK, us), to + WEST);
 				add_piece(pos, PIECE_MAKE(ROOK, us), to + EAST);
@@ -334,6 +360,8 @@ void pos_undo_move(struct position *pos, enum move m)
 	pos->st = st;
 
 	pos->game_ply--;
+
+	pos->acc--;
 }
 
 void pos_do_null_move(struct position *pos)

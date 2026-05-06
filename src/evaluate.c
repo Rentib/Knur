@@ -10,7 +10,7 @@ int evaluate(const struct position *pos)
 {
 	size_t pieces = BB_POPCOUNT(pos->piece[ALL_PIECES]);
 	size_t bucket = MIN((63 - pieces) * (32 - pieces) / 225, 7);
-	return nnue_evaluate(pos->stm, &pos->st->acc, bucket);
+	return nnue_evaluate(pos->stm, pos->acc, bucket);
 }
 
 void evaluate_init(void) {}
