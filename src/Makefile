@@ -1,10 +1,10 @@
-VERSION = 1.6
+VERSION = 1.7
+EXE     = knur-v$(VERSION)
 
 CFLAGS   = -std=c2x -Wall -Wextra -Werror -pedantic -pthread \
 		   -DVERSION=\"$(VERSION)\"
 LDFLAGS  = -pthread -lm
 CC       = clang
-EXE      = knur-v$(VERSION)
 EVALFILE = net.nnue
 
 ifdef EVALFILE

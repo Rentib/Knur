@@ -23,7 +23,7 @@ struct arg {
 };
 
 static int quiescence(struct position *position, struct search_stack *search_stack, int alpha, int beta);
-static int negamax(struct position *position, struct search_stack *search_stack, int alpha, int beta, int depth);
+static int negamax(struct position *position, struct search_stack *search_stack, int alpha, int beta, int depth, bool cutnode);
 static void *search(void *arg);
 
 struct search_params search_params = {
@@ -86,8 +86,7 @@ static int quiescence(struct position *pos, struct search_stack *ss, int alpha,
 	return alpha;
 }
 
-int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
-	    int depth)
+int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, int depth, bool cutnode)
 {
 	bool isroot = !ss->ply;
 	bool pvnode = beta - alpha != 1;
@@ -167,8 +166,8 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 	 * idea to search the current position with shallower depth and get its
 	 * best move. At the same time we can get a better eval of the position.
 	 */
-	if (!tt_hit && depth >= 6 && (pvnode /* || cutnode */)) {
-		eval = negamax(pos, ss, alpha, beta, depth * 2 / 3);
+	if (!tt_hit && depth >= 6 && (pvnode || cutnode)) {
+		eval = negamax(pos, ss, alpha, beta, depth * 2 / 3, cutnode);
 		tt_probe(pos->key, &tt_depth, &tt_bound, &tt_value, &hashmove);
 	}
 
@@ -193,7 +192,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 		R = 3 + (depth >= 8 && BB_SEVERAL(pos_non_pawn(pos, pos->stm)));
 		ss->move = MOVE_NULL;
 		pos_do_null_move(pos);
-		value = -negamax(pos, ss + 1, -beta, -alpha, depth - R - 1);
+		value = -negamax(pos, ss + 1, -beta, -alpha, depth - R - 1, !cutnode);
 		pos_undo_null_move(pos);
 
 		if (value >= beta)
@@ -233,7 +232,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta,
 			 * quiescence only in case of deep searches */
 			value = -quiescence(pos, ss + 1, -prob_beta, -prob_beta + 1);
 			if (value >= prob_beta)
-				value = -negamax(pos, ss + 1, -prob_beta, -prob_beta + 1, depth - 4);
+				value = -negamax(pos, ss + 1, -prob_beta, -prob_beta + 1, depth - 4, !cutnode);
 
 			pos_undo_move(pos, move);
 
@@ -280,8 +279,7 @@ forward_pruning_end:
 
 			R = MAX(1, MIN(depth - 1, R));
 
-			value = -negamax(pos, ss + 1, -(alpha + 1), -alpha,
-					 depth - R);
+			value = -negamax(pos, ss + 1, -(alpha + 1), -alpha, depth - R, true);
 
 			/* TODO: adjust research depth based on results */
 
@@ -291,11 +289,10 @@ forward_pruning_end:
 		}
 
 		if (full_search)
-			value = -negamax(pos, ss + 1, -(alpha + 1), -alpha,
-					 depth - 1);
+			value = -negamax(pos, ss + 1, -(alpha + 1), -alpha, depth - 1, !cutnode);
 
 		if (pvnode && (movecount == 1 || value > alpha))
-			value = -negamax(pos, ss + 1, -beta, -alpha, depth - 1);
+			value = -negamax(pos, ss + 1, -beta, -alpha, depth - 1, false);
 
 		pos_undo_move(pos, move);
 
@@ -397,7 +394,7 @@ void *search(void *arg)
 		}
 
 		while (true) {
-			value = negamax(pos, ss, alpha, beta, depth);
+			value = negamax(pos, ss, alpha, beta, depth, false);
 			if (value <= alpha) {
 				beta = (alpha + beta) / 2;
 				alpha = MAX(-CHECKMATE, alpha - window);
