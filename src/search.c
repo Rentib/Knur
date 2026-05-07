@@ -389,17 +389,17 @@ void *search(void *arg)
 
 		window = sp->window_size;
 		if (depth >= sp->window_depth) {
-			alpha = MAX(-CHECKMATE, value + window);
-			beta = MIN(CHECKMATE, value - window);
+			alpha = MAX(value + window, -CHECKMATE);
+			beta  = MIN(value - window, +CHECKMATE);
 		}
 
 		while (true) {
 			value = negamax(pos, ss, alpha, beta, depth, false);
 			if (value <= alpha) {
 				beta = (alpha + beta) / 2;
-				alpha = MAX(-CHECKMATE, alpha - window);
+				alpha = MAX(alpha - window, -CHECKMATE);
 			} else if (value >= beta) {
-				beta = MIN(CHECKMATE, beta - window);
+				beta = MIN(beta + window, +CHECKMATE);
 			} else {
 				break;
 			}
