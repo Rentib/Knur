@@ -254,6 +254,18 @@ forward_pruning_end:
 		movecount++;
 
 		is_quiet = pos_is_quiet(pos, move);
+
+		/* Late Move Pruning (~11 elo).
+		 * If we have already found a move which raises alpha and
+		 * checked quite a few moves, then — assuming that the move
+		 * ordering is alright — we can prune other moves.
+		 */
+		if (!pvnode && mp.stage >= MP_STAGE_GENERATE_QUIET &&
+		    !in_check && pos_non_pawn(pos, pos->stm) &&
+		    orig_alpha < alpha &&
+		    movecount >= (3 + depth * depth) / (2 - improving))
+			break;
+
 		ss->move = move;
 		pos_do_move(pos, move);
 
