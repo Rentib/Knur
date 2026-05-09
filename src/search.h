@@ -12,6 +12,7 @@ struct search_limits {
 	int inc;
 	int movestogo;
 	int depth;
+	u64 nodes;
 	int movetime;
 	bool infinite;
 

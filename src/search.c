@@ -37,7 +37,7 @@ struct search_params search_params = {
 };
 static struct search_params *sp = &search_params;
 
-static u64 nodes;
+static u64 nodes, max_nodes;
 static atomic_bool running = false, thrd_joined = true;
 static u64 stop_time;
 static pthread_t thrd;
@@ -46,7 +46,8 @@ static int lmr_reduction[MAX_PLY][64];
 
 INLINE bool abort_search(void)
 {
-	if (stop_time && nodes % 4096 == 0 && gettime() >= stop_time)
+	if ((stop_time && nodes % 4096 == 0 && gettime() >= stop_time) ||
+	    (nodes >= max_nodes))
 		running = false;
 	return !running;
 }
@@ -362,8 +363,6 @@ void *search(void *arg)
 	enum move bestmove;
 	int alpha = -CHECKMATE, beta = CHECKMATE, window;
 
-	nodes = 0;
-
 	/* initialize search stack */
 	ss[-2] = ss[-1] = (struct search_stack){
 	    .eval = UNKNOWN,
@@ -393,6 +392,9 @@ void *search(void *arg)
 
 		stop_time = limits->start + limits->movetime;
 	}
+
+	nodes = 0;
+	max_nodes = limits->nodes ? limits->nodes : -1;
 
 	/* iterative deepening */
 	for (depth = 1; depth <= limits->depth; depth++) {

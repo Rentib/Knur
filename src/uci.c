@@ -157,6 +157,9 @@ void go(struct position *pos, char *fmt)
 		} else if (!strcmp(token, "depth")) {
 			token = strtok_r(nullptr, " ", &saveptr);
 			limits.depth = MIN(MAX_PLY - 1, atoi(token));
+		} else if (!strcmp(token, "nodes")) {
+			token = strtok_r(nullptr, " ", &saveptr);
+			limits.nodes = MAX(1, atoi(token));
 		} else if (!strcmp(token, "movetime")) {
 			token = strtok_r(nullptr, " ", &saveptr);
 			limits.movetime = atoi(token);
