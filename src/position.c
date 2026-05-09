@@ -177,10 +177,12 @@ void pos_set_fen(struct position *pos, const char *fen)
 	}
 
 	/* half move clock */
-	pos->st->fifty_rule = atoi(strtok_r(nullptr, " ", &saveptr));
+	token = strtok_r(nullptr, " ", &saveptr);
+	pos->st->fifty_rule = token ? atoi(strtok_r(nullptr, " ", &saveptr)) : 0;
 
 	/* full move counter */
-	pos->game_ply = atoi(strtok_r(nullptr, " ", &saveptr));
+	token = strtok_r(nullptr, " ", &saveptr);
+	pos->game_ply = token ? atoi(strtok_r(nullptr, " ", &saveptr)) : 1;
 	pos->reps[pos->game_ply - 1] = pos->key;
 
 	/* additional information */
