@@ -25,6 +25,8 @@ struct search_stack {
 	enum move move;      /* current move */
 	enum move *pv;       /* principal variation */
 	enum move killer[2]; /* killer moves */
+	enum move skip;      /* singular move */
+	int dextensions;     /* number of double extensions */
 };
 
 struct search_params {

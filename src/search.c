@@ -52,8 +52,7 @@ INLINE bool abort_search(void)
 	return !running;
 }
 
-static int quiescence(struct position *pos, struct search_stack *ss, int alpha,
-		      int beta)
+static int quiescence(struct position *pos, struct search_stack *ss, int alpha, int beta)
 {
 	int value = evaluate(pos);
 	enum move move;
@@ -94,10 +93,11 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 	bool pvnode = beta - alpha != 1;
 	bool in_check = !!pos->st->checkers;
 	bool tt_hit, improving, is_quiet, full_search;
-	int value = -CHECKMATE;
+	int value = -CHECKMATE, eval = UNKNOWN;
 	int best_value = -CHECKMATE;
-	int eval, R, movecount = 0;
-	int orig_alpha = alpha, prob_beta;
+	int movecount = 0;
+	int new_depth, extension, R, bound;
+	int orig_alpha = alpha;
 	int tt_depth, tt_value = UNKNOWN, tt_eval = UNKNOWN;
 	enum tt_bound tt_bound = TT_NONE;
 	enum move move, bestmove = MOVE_NONE;
@@ -105,7 +105,8 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 	struct move_picker mp;
 
 	ss->move = MOVE_NONE;
-	*ss->pv = MOVE_NONE;
+	ss->pv[0] = MOVE_NONE;
+	ss->dextensions = (ss - 1)->dextensions;
 
 	/* Quiescence Search.
 	 * Perform a search using only tactical moves to reach a more stable
@@ -144,6 +145,11 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 		beta = MIN(MATE_IN(ss->ply), beta);
 		if (alpha >= beta)
 			return alpha;
+	}
+
+	if (ss->skip != MOVE_NONE) {
+		eval = ss->eval;
+		goto move_loop;
 	}
 
 	/* Probe the Transposition Table.
@@ -229,9 +235,9 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 	 * R2:          0.964498
 	 * ==================================================
 	 */
-	prob_beta = (2.3263 * 127.8935 + beta - -4.981127) / 1.096462;
+	bound = (2.3263 * 127.8935 + beta - -4.981127) / 1.096462;
 	if (depth >= 6 && !IS_MATE(beta) &&
-	    !(tt_hit && tt_depth >= depth - 3 && tt_value < prob_beta)) {
+	    !(tt_hit && tt_depth >= depth - 3 && tt_value < bound)) {
 		mp_init(&mp, pos, hashmove, ss);
 		while ((move = mp_next(&mp, pos, true)) && mp.stage <= MP_STAGE_GOOD_CAPTURES) {
 			if (!pos_is_legal(pos, move))
@@ -242,13 +248,13 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 
 			/* TODO: it might be beneficial to validate with
 			 * quiescence only in case of deep searches */
-			value = -quiescence(pos, ss + 1, -prob_beta, -prob_beta + 1);
-			if (value >= prob_beta)
-				value = -negamax(pos, ss + 1, -prob_beta, -prob_beta + 1, depth - 4, !cutnode);
+			value = -quiescence(pos, ss + 1, -bound, -bound + 1);
+			if (value >= bound)
+				value = -negamax(pos, ss + 1, -bound, -bound + 1, depth - 4, !cutnode);
 
 			pos_undo_move(pos, move);
 
-			if (value >= prob_beta) {
+			if (value >= bound) {
 				if (!tt_hit || tt_depth < depth - 3)
 					tt_store(pos->key, depth - 3, TT_LOWER, value, eval, move);
 				return value;
@@ -259,7 +265,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 move_loop:
 	mp_init(&mp, pos, hashmove, ss);
 	while ((move = mp_next(&mp, pos, false)) != MOVE_NONE) {
-		if (!pos_is_legal(pos, move))
+		if (!pos_is_legal(pos, move) || move == ss->skip)
 			continue;
 
 		movecount++;
@@ -277,6 +283,36 @@ move_loop:
 		    movecount >= (3 + depth * depth) / (2 - improving))
 			break;
 
+		/* Singular Extensions (~63 elo).
+		 * If one move is much better than every other alternative then
+		 * search it with greater depth.
+		 */
+		extension = 0;
+		if (!isroot && depth >= 8 && move == hashmove &&
+		    tt_depth >= depth - 3 && (tt_bound & TT_LOWER)) {
+			bound = MAX(tt_value - depth, -CHECKMATE);
+
+			ss->skip = hashmove;
+			value = negamax(pos, ss, bound - 1, bound, (depth - 1) / 2, cutnode);
+			ss->skip = MOVE_NONE;
+
+			/* MultiCut.
+			 * If an expected cutnode has multiple children failing
+			 * high, we prune its subtree.
+			 */
+			if (value >= bound && bound >= beta)
+				return bound;
+
+			if (!pvnode && value < bound - 17 && ss->dextensions <= 6)
+				extension = 2;
+			else if (value < bound)
+				extension = 1;
+			else if (tt_value <= alpha || beta <= tt_value)
+				extension = -1;
+		}
+		new_depth = depth + extension;
+		ss->dextensions += extension > 1;
+
 		ss->move = move;
 		pos_do_move(pos, move);
 		tt_prefetch(pos->key);
@@ -289,13 +325,9 @@ move_loop:
 		if (depth >= 2 && movecount > 1) {
 			/* Quiet Late Move Reductions (~32 elo). */
 			if (is_quiet) {
-				R = lmr_reduction[MIN(depth, MAX_PLY)]
-						 [MIN(movecount, 64)];
-
+				R = lmr_reduction[MIN(depth, MAX_PLY)][MIN(movecount, 64)];
 				R += !pvnode + !improving;
-				R += in_check &&
-				     PIECE_TYPE(pos->board[MOVE_FROM(move)]) ==
-					 KING;
+				R += in_check && PIECE_TYPE(pos->board[MOVE_FROM(move)]) == KING;
 				R -= mp.stage < MP_STAGE_QUIET;
 
 				/* TODO: adjust based on history scores */
@@ -303,7 +335,7 @@ move_loop:
 
 			R = MAX(1, MIN(depth - 1, R));
 
-			value = -negamax(pos, ss + 1, -(alpha + 1), -alpha, depth - R, true);
+			value = -negamax(pos, ss + 1, -(alpha + 1), -alpha, new_depth - R, true);
 
 			/* TODO: adjust research depth based on results */
 
@@ -313,12 +345,13 @@ move_loop:
 		}
 
 		if (full_search)
-			value = -negamax(pos, ss + 1, -(alpha + 1), -alpha, depth - 1, !cutnode);
+			value = -negamax(pos, ss + 1, -(alpha + 1), -alpha, new_depth - 1, !cutnode);
 
 		if (pvnode && (movecount == 1 || value > alpha))
-			value = -negamax(pos, ss + 1, -beta, -alpha, depth - 1, false);
+			value = -negamax(pos, ss + 1, -beta, -alpha, new_depth - 1, false);
 
 		pos_undo_move(pos, move);
+		ss->dextensions -= extension > 1;
 
 		if (value <= best_value)
 			continue;
@@ -341,24 +374,26 @@ move_loop:
 		if (value > alpha) {
 			alpha = value;
 
-			*ss->pv = bestmove;
-			memcpy(ss->pv + 1, (ss + 1)->pv,
-			       sizeof(enum move) * depth);
+			ss->pv[0] = bestmove;
+			memcpy(ss->pv + 1, (ss + 1)->pv, sizeof(enum move) * new_depth);
+			ss->pv[new_depth] = MOVE_NONE;
 		}
 	}
 
-	if (!movecount)
+	if (!movecount && ss->skip == MOVE_NONE)
 		best_value = in_check ? MATED_IN(ss->ply) : 0;
 
 	/* Store results in the Transposition Table.
 	 * Store the hashmove and the value of the position at the current
 	 * depth.
 	 */
-	tt_store(pos->key, depth,
-		 best_value <= orig_alpha ? TT_UPPER
-		 : best_value >= beta     ? TT_LOWER
-					  : TT_EXACT,
-		 best_value, eval, bestmove);
+	if (ss->skip == MOVE_NONE) {
+		tt_store(pos->key, depth,
+			 best_value <= orig_alpha ? TT_UPPER
+			 : best_value >= beta     ? TT_LOWER
+						  : TT_EXACT,
+			 best_value, eval, bestmove);
+	}
 
 	return best_value;
 }
@@ -502,11 +537,14 @@ int search_eval(struct position *pos)
 	ss[-2] = ss[-1] = (struct search_stack){
 	    .eval = UNKNOWN,
 	    .move = MOVE_NONE,
+	    .dextensions = 0,
 	};
 	for (i = 0; i < MAX_PLY; i++) {
 		(ss + i)->ply = i;
 		(ss + i)->pv = ecalloc(MAX_PLY - i, sizeof(enum move));
 		(ss + i)->killer[0] = (ss + i)->killer[1] = MOVE_NONE;
+		(ss + i)->skip = MOVE_NONE;
+		(ss + i)->dextensions = 0;
 	}
 
 	running = true;

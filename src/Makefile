@@ -1,4 +1,4 @@
-VERSION = 1.11
+VERSION = 1.12
 EXE     = knur-v$(VERSION)
 
 CFLAGS   = -std=c2x -Wall -Wextra -Werror -pedantic -pthread \
