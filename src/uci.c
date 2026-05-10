@@ -86,6 +86,7 @@ void setoption([[maybe_unused]] struct position *pos, char *fmt)
 void ucinewgame(struct position *pos, [[maybe_unused]] char *fmt)
 {
 	pos_set_fen(pos, nullptr);
+	tt_clear();
 }
 
 void position(struct position *pos, char *fmt)

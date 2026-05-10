@@ -75,6 +75,7 @@ static int quiescence(struct position *pos, struct search_stack *ss, int alpha,
 
 		ss->move = move;
 		pos_do_move(pos, move);
+		tt_prefetch(pos->key);
 		value = -quiescence(pos, ss, -beta, -alpha);
 		pos_undo_move(pos, move);
 
@@ -97,7 +98,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 	int best_value = -CHECKMATE;
 	int eval, R, movecount = 0;
 	int orig_alpha = alpha, prob_beta;
-	int tt_depth, tt_value = UNKNOWN;
+	int tt_depth, tt_value = UNKNOWN, tt_eval = UNKNOWN;
 	enum tt_bound tt_bound = TT_NONE;
 	enum move move, bestmove = MOVE_NONE;
 	enum move hashmove = MOVE_NONE;
@@ -148,7 +149,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 	/* Probe the Transposition Table.
 	 * Get the hashmove and possibly get a TT cutoff.
 	 */
-	tt_hit = tt_probe(pos->key, &tt_depth, &tt_bound, &tt_value, &hashmove);
+	tt_hit = tt_probe(pos->key, &tt_depth, &tt_bound, &tt_value, &tt_eval, &hashmove);
 	if (tt_hit && !pvnode && depth <= tt_depth && tt_value != UNKNOWN &&
 	    hashmove != MOVE_NONE &&
 	    ((tt_bound == TT_EXACT) ||
@@ -160,22 +161,30 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 					 : tt_value;
 	}
 
-	eval = ss->eval = in_check ? UNKNOWN : evaluate(pos);
-
 	/* Internal Iterative deepening (~13 elo).
 	 * If we haven't found a hashmove for the position, it usually is a good
 	 * idea to search the current position with shallower depth and get its
 	 * best move. At the same time we can get a better eval of the position.
 	 */
 	if (!tt_hit && depth >= 6 && (pvnode || cutnode)) {
-		eval = negamax(pos, ss, alpha, beta, depth * 2 / 3, cutnode);
-		tt_probe(pos->key, &tt_depth, &tt_bound, &tt_value, &hashmove);
+		(void)negamax(pos, ss, alpha, beta, depth * 2 / 3, cutnode);
+		tt_hit = tt_probe(pos->key, &tt_depth, &tt_bound, &tt_value, &tt_eval, &hashmove);
 	}
+
+	/* Static Evaluation
+	 * As evaluate() function is expensive, try to get it from tt first.
+	 */
+	eval = ss->eval = in_check                     ? UNKNOWN
+			: tt_hit && tt_eval != UNKNOWN ? tt_eval
+						       : evaluate(pos);
+
+	if (!tt_hit && eval != UNKNOWN)
+		tt_store(pos->key, 0, TT_NONE, UNKNOWN, eval, MOVE_NONE);
 
 	improving = in_check && eval > (ss - 2)->eval;
 
 	if (pvnode || in_check)
-		goto forward_pruning_end;
+		goto move_loop;
 
 	/* Reverse Futility Pruning (~107 elo).
 	 * Eval is so high that we assume that it won't get below beta.
@@ -193,6 +202,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 		R = 3 + (depth >= 8 && BB_SEVERAL(pos_non_pawn(pos, pos->stm)));
 		ss->move = MOVE_NULL;
 		pos_do_null_move(pos);
+		tt_prefetch(pos->key);
 		value = -negamax(pos, ss + 1, -beta, -alpha, depth - R - 1, !cutnode);
 		pos_undo_null_move(pos);
 
@@ -228,6 +238,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 				continue;
 
 			pos_do_move(pos, move);
+			tt_prefetch(pos->key);
 
 			/* TODO: it might be beneficial to validate with
 			 * quiescence only in case of deep searches */
@@ -239,14 +250,13 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 
 			if (value >= prob_beta) {
 				if (!tt_hit || tt_depth < depth - 3)
-					tt_store(pos->key, depth - 3, TT_LOWER, value, move);
+					tt_store(pos->key, depth - 3, TT_LOWER, value, eval, move);
 				return value;
 			}
 		}
 	}
 
-forward_pruning_end:
-
+move_loop:
 	mp_init(&mp, pos, hashmove, ss);
 	while ((move = mp_next(&mp, pos, false)) != MOVE_NONE) {
 		if (!pos_is_legal(pos, move))
@@ -269,6 +279,7 @@ forward_pruning_end:
 
 		ss->move = move;
 		pos_do_move(pos, move);
+		tt_prefetch(pos->key);
 
 		/* Late Move Reductions.
 		 * Reduce the depth of search for moves other than the first
@@ -347,7 +358,7 @@ forward_pruning_end:
 		 best_value <= orig_alpha ? TT_UPPER
 		 : best_value >= beta     ? TT_LOWER
 					  : TT_EXACT,
-		 best_value, bestmove);
+		 best_value, eval, bestmove);
 
 	return best_value;
 }
@@ -378,7 +389,7 @@ void *search(void *arg)
 	history_clear();
 
 	/* clear transposition table */
-	tt_clear();
+	tt_update();
 
 	stop_time = 0;
 	if (limits->movetime != -1) {
@@ -429,8 +440,9 @@ void *search(void *arg)
 					 : -(CHECKMATE + value + 1) / 2);
 		else
 			printf("score cp %d ", value);
-		printf("nodes %zu ", nodes);
 		printf("time %zu ", gettime() - limits->start);
+		printf("nodes %zu ", nodes);
+		printf("hashfull %zu ", tt_hashfull());
 		printf("pv");
 		for (i = 0; i < depth && ss->pv[i] != MOVE_NONE; i++)
 			printf(" %s", MOVE_STR(ss->pv[i]));
