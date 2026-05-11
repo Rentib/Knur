@@ -37,6 +37,7 @@ struct search_params search_params = {
 };
 static struct search_params *sp = &search_params;
 
+static int seldepth;
 static u64 nodes, max_nodes;
 static atomic_bool running = false, thrd_joined = true;
 static u64 stop_time;
@@ -69,6 +70,8 @@ static int quiescence(struct position *pos, struct search_stack *ss, int alpha, 
 
 	if (abort_search())
 		longjmp(jbuffer, 1);
+
+	seldepth = MAX(seldepth, ss->ply + 1);
 	nodes++;
 
 	if (pos_is_draw(pos))
@@ -188,6 +191,8 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 	 */
 	if (abort_search())
 		longjmp(jbuffer, 1);
+
+	seldepth = MAX(seldepth, ss->ply + 1);
 	nodes++;
 
 	/* Check for early exit conditions.
@@ -503,6 +508,7 @@ void *search(void *arg)
 		stop_time = limits->start + limits->movetime;
 	}
 
+	seldepth = 0;
 	nodes = 0;
 	max_nodes = limits->nodes ? limits->nodes : -1;
 
@@ -533,6 +539,7 @@ void *search(void *arg)
 		bestmove = *ss->pv;
 
 		printf("info depth %d ", depth);
+		printf("info seldepth %d ", seldepth);
 		if (IS_MATE(value))
 			printf("score mate %d ",
 			       value > 0 ? +(CHECKMATE - value + 1) / 2
