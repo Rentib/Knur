@@ -2,7 +2,7 @@
 UCI-compliant chess engine, written from scratch in C.
 
 ## Strength
-Around 2416 elo on [CCRL](https://computerchess.org.uk/ccrl/4040/rating_list_all.html).
+knur-v1.0: Around 2416 elo on [CCRL](https://computerchess.org.uk/ccrl/4040/rating_list_all.html).
 
 ## Features
 - [Negamax](https://www.chessprogramming.org/Negamax) with [PVS](https://www.chessprogramming.org/Principal_Variation_Search)
@@ -14,10 +14,19 @@ Around 2416 elo on [CCRL](https://computerchess.org.uk/ccrl/4040/rating_list_all
     - [Static Exchange Evaluation](https://www.chessprogramming.org/Static_Exchange_Evaluation)
     - [Killer Heuristic](https://www.chessprogramming.org/Killer_Heuristic)
     - [Countermove Heuristic](https://www.chessprogramming.org/Countermove_Heuristic)
+    - [History Heuristic](https://www.chessprogramming.org/History_Heuristic)
+    - [Internal Iterative Deepening](https://www.chessprogramming.org/Internal_Iterative_Deepening)
+- Extensions
+    - [Singular Extensions](https://www.chessprogramming.org/Singular_Extensions)
 - Pruning
     - [Mate Distance Pruning](https://www.chessprogramming.org/Mate_Distance_Pruning)
-    - [Null Move Pruning](https://www.chessprogramming.org/Null_Move_Pruning)
     - [Reverse Futility Pruning](https://www.chessprogramming.org/Reverse_Futility_Pruning)
+    - [Null Move Pruning](https://www.chessprogramming.org/Null_Move_Pruning)
+    - [ProbCut](https://www.chessprogramming.org/ProbCut)
+    - [Late Move Pruning](https://www.chessprogramming.org/Futility_Pruning#MoveCountBasedPruning)
+    - [Multi-Cut](https://www.chessprogramming.org/Multi-Cut)
+- Reductions
+    - [Late Move Reductions](https://www.chessprogramming.org/Late_Move_Reductions)
 - Evaluation
     - [NNUE](https://www.chessprogramming.org/NNUE): `(768->1536)x2->1x8`
     - ~~[Tapered Eval](https://www.chessprogramming.org/Tapered_Eval)~~
@@ -32,9 +41,15 @@ make
 ```
 
 ## Acknowledgements
-- [Chess Programming Wiki](https://www.chessprogramming.org/Main_Page)
-- [Stockfish](https://github.com/official-stockfish/Stockfish/)
-- [Berserk](https://github.com/jhonnold/berserk)
-- [Ethereal](https://github.com/AndyGrant/Ethereal/tree/master)
-- [Alexandria](https://github.com/PGG106/Alexandria)
-- [c-chess-cli](https://github.com/lucasart/c-chess-cli)
+- Resources
+    - [Chess Programming Wiki](https://www.chessprogramming.org/Main_Page)
+- Engines
+    - [Stockfish](https://github.com/official-stockfish/Stockfish/)
+    - [Berserk](https://github.com/jhonnold/berserk)
+    - [Ethereal](https://github.com/AndyGrant/Ethereal/tree/master)
+    - [Alexandria](https://github.com/PGG106/Alexandria)
+- Tools
+    - [c-chess-cli](https://github.com/lucasart/c-chess-cli)
+    - [fastchess](https://github.com/Disservin/fastchess)
+    - [bullet](https://github.com/jw1912/bullet)
+    - [CLOP](https://www.remi-coulom.fr/CLOP/)
