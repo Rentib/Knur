@@ -168,6 +168,10 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 	ss->pv[0] = MOVE_NONE;
 	ss->dextensions = (ss - 1)->dextensions;
 
+	/* Killer moves are local to a position, so we have to reset them. */
+	(ss + 1)->killer[0] = MOVE_NONE;
+	(ss + 1)->killer[1] = MOVE_NONE;
+
 	/* Quiescence Search.
 	 * Perform a search using only tactical moves to reach a more stable
 	 * position and avoid the horizon effect.
