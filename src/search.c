@@ -92,13 +92,9 @@ static int quiescence(struct position *pos, struct search_stack *ss, int alpha, 
 		goto move_loop;
 	}
 
-	/* Static Evaluation
-	 * As evaluate() function is expensive, try to get it from tt first.
-	 */
 	eval = ss->eval = in_check                     ? UNKNOWN
 			: tt_hit && tt_eval != UNKNOWN ? tt_eval
 						       : evaluate(pos);
-
 	if (!tt_hit && eval != UNKNOWN)
 		tt_store(pos->key, 0, TT_NONE, UNKNOWN, eval, MOVE_NONE);
 
@@ -175,7 +171,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 	(ss + 1)->killer[0] = MOVE_NONE;
 	(ss + 1)->killer[1] = MOVE_NONE;
 
-	/* Quiescence Search.
+	/* Step 1. Quiescence Search.
 	 * Perform a search using only tactical moves to reach a more stable
 	 * position and avoid the horizon effect.
 	 */
@@ -186,16 +182,17 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 		depth = 1;
 	}
 
-	/* Abort Search.
+	/* Step 2. Abort Search.
 	 * Exit if time is up or the program has been stopped by a UCI command.
 	 */
 	if (abort_search())
 		longjmp(jbuffer, 1);
 
+	/* Update UCI relevant information */
 	seldepth = MAX(seldepth, ss->ply + 1);
 	nodes++;
 
-	/* Check for early exit conditions.
+	/* Step 3. Check for early exit conditions.
 	 * Do not exit in the root as we would possibly not get any best move.
 	 */
 	if (!isroot) {
@@ -216,12 +213,13 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 			return alpha;
 	}
 
+	/* Skip transposition table probe and pruning during singular search */
 	if (ss->skip != MOVE_NONE) {
 		eval = ss->eval;
 		goto move_loop;
 	}
 
-	/* Probe the Transposition Table.
+	/* Step 4. Probe the Transposition Table.
 	 * Get the hashmove and possibly get a TT cutoff.
 	 */
 	tt_hit = tt_probe(pos->key, &tt_depth, &tt_bound, &tt_value, &tt_eval, &hashmove);
@@ -236,7 +234,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 					 : tt_value;
 	}
 
-	/* Internal Iterative deepening (~13 elo).
+	/* Step 5. Internal Iterative deepening.
 	 * If we haven't found a hashmove for the position, it usually is a good
 	 * idea to search the current position with shallower depth and get its
 	 * best move. At the same time we can get a better eval of the position.
@@ -246,13 +244,10 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 		tt_hit = tt_probe(pos->key, &tt_depth, &tt_bound, &tt_value, &tt_eval, &hashmove);
 	}
 
-	/* Static Evaluation
-	 * As evaluate() function is expensive, try to get it from tt first.
-	 */
+	/* Step 6. Initialize search relevant values used in pruning. */
 	eval = ss->eval = in_check                     ? UNKNOWN
 			: tt_hit && tt_eval != UNKNOWN ? tt_eval
 						       : evaluate(pos);
-
 	if (!tt_hit && eval != UNKNOWN)
 		tt_store(pos->key, 0, TT_NONE, UNKNOWN, eval, MOVE_NONE);
 
@@ -261,14 +256,14 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 	if (pvnode || in_check)
 		goto move_loop;
 
-	/* Reverse Futility Pruning (~107 elo).
+	/* Step 7. Reverse Futility Pruning.
 	 * Eval is so high that we assume that it won't get below beta.
 	 */
 	if (depth <= sp->rfp_depth &&
 	    eval - sp->rfp_margin * MAX(0, depth - improving) >= beta)
 		return eval;
 
-	/* Null Move Pruning (~133 elo).
+	/* Step 8. Null Move Pruning.
 	 * Position is so good that we can give the enemy a free move and still
 	 * be winning.
 	 */
@@ -285,7 +280,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 			return value;
 	}
 
-	/* ProbCut (~9 elo).
+	/* Step 9. ProbCut.
 	 * After calculating a and b parameters as well as the standard
 	 * deviation of error e, we can get a high probability of the actual
 	 * value being greater than beta.
@@ -331,6 +326,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 		}
 	}
 
+	/* Step 10. Initialize the Move Picker and check possible moves. */
 move_loop:
 	mp_init(&mp, pos, hashmove, ss);
 	while ((move = mp_next(&mp, pos, false)) != MOVE_NONE) {
@@ -341,7 +337,7 @@ move_loop:
 
 		is_quiet = pos_is_quiet(pos, move);
 
-		/* Late Move Pruning (~11 elo).
+		/* Step 11. Late Move Pruning.
 		 * If we have already found a move which raises alpha and
 		 * checked quite a few moves, then — assuming that the move
 		 * ordering is alright — we can prune other moves.
@@ -352,7 +348,7 @@ move_loop:
 		    movecount >= (3 + depth * depth) / (2 - improving))
 			break;
 
-		/* Singular Extensions (~63 elo).
+		/* Step 12. Singular Extensions.
 		 * If one move is much better than every other alternative then
 		 * search it with greater depth.
 		 */
@@ -386,7 +382,7 @@ move_loop:
 		pos_do_move(pos, move);
 		tt_prefetch(pos->key);
 
-		/* Late Move Reductions.
+		/* Step 13. Late Move Reductions.
 		 * Reduce the depth of search for moves other than the first
 		 * one. This assumes the move ordering is so good that the first
 		 * move is the best one.
@@ -422,6 +418,9 @@ move_loop:
 		pos_undo_move(pos, move);
 		ss->dextensions -= extension > 1;
 
+		/* Step 14. Update search stats.
+		 * Best value, best move, alpha, beta and PV.
+		 */
 		if (value <= best_value)
 			continue;
 		best_value = value;
@@ -449,10 +448,14 @@ move_loop:
 		}
 	}
 
+	/* Step 15. Checkmate and Stalemante detection.
+	 * If no legal moves exist in the position then depending on whether
+	 * the side to move is in check its either Checkmate or Stalemate.
+	 */
 	if (!movecount && ss->skip == MOVE_NONE)
 		best_value = in_check ? MATED_IN(ss->ply) : 0;
 
-	/* Store results in the Transposition Table.
+	/* Step 16. Store results in the Transposition Table.
 	 * Store the hashmove and the value of the position at the current
 	 * depth.
 	 */
