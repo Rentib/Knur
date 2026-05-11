@@ -137,11 +137,10 @@ move_loop:
 	if (bestmove >= beta && IS_MATE(best_value))
 		best_value = (best_value + beta) / 2;
 
-	tt_store(pos->key, 0,
-		 best_value <= orig_alpha ? TT_UPPER
-		 : best_value >= beta     ? TT_LOWER
-					  : TT_EXACT,
-		 best_value, eval, bestmove);
+	tt_bound = best_value <= orig_alpha ? TT_UPPER
+		 : best_value >= beta       ? TT_LOWER
+					    : TT_EXACT;
+	tt_store(pos->key, 0, tt_bound, best_value, eval, bestmove);
 
 	return best_value;
 }
@@ -303,7 +302,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 	if (depth >= 6 && !IS_MATE(beta) &&
 	    !(tt_hit && tt_depth >= depth - 3 && tt_value < bound)) {
 		mp_init(&mp, pos, hashmove, ss);
-		while ((move = mp_next(&mp, pos, true)) && mp.stage <= MP_STAGE_GOOD_CAPTURES) {
+		while ((move = mp_next(&mp, pos, true)) != MOVE_NONE) {
 			if (!pos_is_legal(pos, move))
 				continue;
 
@@ -460,11 +459,10 @@ move_loop:
 	 * depth.
 	 */
 	if (ss->skip == MOVE_NONE) {
-		tt_store(pos->key, depth,
-			 best_value <= orig_alpha ? TT_UPPER
-			 : best_value >= beta     ? TT_LOWER
-						  : TT_EXACT,
-			 best_value, eval, bestmove);
+		tt_bound = best_value <= orig_alpha ? TT_UPPER
+			 : best_value >= beta       ? TT_LOWER
+						    : TT_EXACT;
+		tt_store(pos->key, depth, tt_bound, best_value, eval, bestmove);
 	}
 
 	return best_value;
