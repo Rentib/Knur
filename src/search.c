@@ -107,7 +107,7 @@ static int quiescence(struct position *pos, struct search_stack *ss, int alpha, 
 	best_value = eval;
 
 move_loop:
-	mp_init(&mp, pos, hashmove, ss);
+	mp_init(&mp, pos, in_check ? hashmove : MOVE_NONE, ss);
 	while ((move = mp_next(&mp, pos, !in_check)) != MOVE_NONE) {
 		if (!pos_is_legal(pos, move))
 			continue;
