@@ -54,37 +54,97 @@ INLINE bool abort_search(void)
 
 static int quiescence(struct position *pos, struct search_stack *ss, int alpha, int beta)
 {
-	int value = evaluate(pos);
-	enum move move;
+	bool pvnode = beta - alpha != 1;
+	bool in_check = !!pos->st->checkers;
+	bool tt_hit;
+	int value = -CHECKMATE, eval = UNKNOWN;
+	int best_value = -CHECKMATE;
+	int movecount = 0;
+	int orig_alpha = alpha;
+	int tt_depth, tt_value = UNKNOWN, tt_eval = UNKNOWN;
+	enum tt_bound tt_bound = TT_NONE;
+	enum move move, bestmove = MOVE_NONE;
+	enum move hashmove = MOVE_NONE;
 	struct move_picker mp;
 
 	if (abort_search())
 		longjmp(jbuffer, 1);
 	nodes++;
 
-	if (value >= beta)
-		return beta;
-	if (value > alpha)
-		alpha = value;
+	if (pos_is_draw(pos))
+		return 0;
 
-	mp_init(&mp, pos, MOVE_NONE, ss);
-	while ((move = mp_next(&mp, pos, true)) != MOVE_NONE) {
+	if (ss->ply >= MAX_PLY - 1)
+		return in_check ? 0 : evaluate(pos);
+
+	tt_hit = tt_probe(pos->key, &tt_depth, &tt_bound, &tt_value, &tt_eval, &hashmove);
+	if (!pvnode && tt_hit && tt_value != UNKNOWN &&
+	    ((tt_bound == TT_EXACT) ||
+	     (tt_bound == TT_LOWER && tt_value >= beta) ||
+	     (tt_bound == TT_UPPER && tt_value <= alpha)))
+		return tt_value;
+
+	if (in_check) {
+		eval = UNKNOWN;
+		goto move_loop;
+	}
+
+	/* Static Evaluation
+	 * As evaluate() function is expensive, try to get it from tt first.
+	 */
+	eval = ss->eval = in_check                     ? UNKNOWN
+			: tt_hit && tt_eval != UNKNOWN ? tt_eval
+						       : evaluate(pos);
+
+	if (!tt_hit && eval != UNKNOWN)
+		tt_store(pos->key, 0, TT_NONE, UNKNOWN, eval, MOVE_NONE);
+
+	if (eval >= beta)
+		return eval;
+	if (eval > alpha)
+		alpha = eval;
+
+	best_value = eval;
+
+move_loop:
+	mp_init(&mp, pos, hashmove, ss);
+	while ((move = mp_next(&mp, pos, !in_check)) != MOVE_NONE) {
 		if (!pos_is_legal(pos, move))
 			continue;
+
+		movecount++;
 
 		ss->move = move;
 		pos_do_move(pos, move);
 		tt_prefetch(pos->key);
-		value = -quiescence(pos, ss, -beta, -alpha);
+		value = -quiescence(pos, ss + 1, -beta, -alpha);
 		pos_undo_move(pos, move);
 
+		if (value <= best_value)
+			continue;
+		best_value = value;
+		bestmove = move;
+
 		if (value >= beta)
-			return beta;
+			break;
+
 		if (value > alpha)
 			alpha = value;
 	}
 
-	return alpha;
+	if (!movecount && in_check)
+		return MATED_IN(ss->ply);
+
+	if (bestmove >= beta && IS_MATE(best_value))
+		best_value = (best_value + beta) / 2;
+
+	tt_store(pos->key, 0,
+		 best_value <= orig_alpha ? TT_UPPER
+		 : best_value >= beta     ? TT_LOWER
+					  : TT_EXACT,
+		 best_value, eval, bestmove);
+
+	return best_value;
 }
 
 int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, int depth, bool cutnode)
