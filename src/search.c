@@ -405,7 +405,7 @@ move_loop:
 		 * move is the best one.
 		 */
 		if (depth >= 2 && movecount > 1) {
-			/* Quiet Late Move Reductions (~32 elo). */
+			/* Quiet Late Move Reductions. */
 			if (is_quiet) {
 				R = lmr_reduction[MIN(depth, MAX_PLY)][MIN(movecount, 64)];
 				R += !pvnode + !improving;
