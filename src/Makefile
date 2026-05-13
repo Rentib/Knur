@@ -1,3 +1,19 @@
+# Knur, a UCI chess engine.
+# Copyright (C) 2024-2026 Stanisław Bitner
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 VERSION = 1.14
 EXE     = knur-v$(VERSION)
 
@@ -13,8 +29,8 @@ else
 	CFLAGS += -DUSE_NNUE=0
 endif
 
-REQ = bitboards evaluate history movegen movepicker perft position search \
-      transposition uci util nn/nnue
+REQ = bitboards evaluate history movegen movepicker nnue perft position search \
+      transposition uci util
 
 all: CFLAGS += -O3 -ffast-math
 all: CFLAGS += -march=native -m64 -mpopcnt
