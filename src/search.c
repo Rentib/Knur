@@ -98,7 +98,7 @@ static int quiescence(struct position *pos, struct search_stack *ss, int alpha, 
 	if (ss->ply >= MAX_PLY - 1)
 		return in_check ? 0 : evaluate(pos);
 
-	tt_hit = tt_probe(pos->key, &tt_depth, &tt_bound, &tt_value, &tt_eval, &hashmove);
+	tt_hit = tt_probe(pos->key, ss->ply, &tt_depth, &tt_bound, &tt_value, &tt_eval, &hashmove);
 	if (!pvnode && tt_hit && tt_value != UNKNOWN &&
 	    ((tt_bound == TT_EXACT) ||
 	     (tt_bound == TT_LOWER && tt_value >= beta) ||
@@ -114,7 +114,7 @@ static int quiescence(struct position *pos, struct search_stack *ss, int alpha, 
 			: tt_hit && tt_eval != UNKNOWN ? tt_eval
 						       : evaluate(pos);
 	if (!tt_hit && eval != UNKNOWN)
-		tt_store(pos->key, 0, TT_NONE, UNKNOWN, eval, MOVE_NONE);
+		tt_store(pos->key, ss->ply, 0, TT_NONE, UNKNOWN, eval, MOVE_NONE);
 
 	if (eval >= beta)
 		return eval;
@@ -158,7 +158,7 @@ move_loop:
 	tt_bound = best_value <= orig_alpha ? TT_UPPER
 		 : best_value >= beta       ? TT_LOWER
 					    : TT_EXACT;
-	tt_store(pos->key, 0, tt_bound, best_value, eval, bestmove);
+	tt_store(pos->key, ss->ply, 0, tt_bound, best_value, eval, bestmove);
 
 	return best_value;
 }
@@ -239,17 +239,14 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 	/* Step 4. Probe the Transposition Table.
 	 * Get the hashmove and possibly get a TT cutoff.
 	 */
-	tt_hit = tt_probe(pos->key, &tt_depth, &tt_bound, &tt_value, &tt_eval, &hashmove);
+	tt_hit = tt_probe(pos->key, ss->ply, &tt_depth, &tt_bound, &tt_value, &tt_eval, &hashmove);
 	if (tt_hit && !pvnode && depth <= tt_depth && tt_value != UNKNOWN &&
 	    hashmove != MOVE_NONE &&
 	    ((tt_bound == TT_EXACT) ||
 	     (tt_bound == TT_UPPER && tt_value <= alpha) ||
 	     (tt_bound == TT_LOWER && tt_value >= beta)) &&
-	    pos_is_pseudo_legal(pos, hashmove) && pos_is_legal(pos, hashmove)) {
-		return IS_MATE(tt_value) ? tt_value < 0 ? tt_value + ss->ply
-							: tt_value - ss->ply
-					 : tt_value;
-	}
+	    pos_is_pseudo_legal(pos, hashmove) && pos_is_legal(pos, hashmove))
+		return tt_value;
 
 	/* Step 5. Internal Iterative deepening.
 	 * If we haven't found a hashmove for the position, it usually is a good
@@ -258,7 +255,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 	 */
 	if (!tt_hit && depth >= 6 && (pvnode || cutnode)) {
 		(void)negamax(pos, ss, alpha, beta, depth * 2 / 3, cutnode);
-		tt_hit = tt_probe(pos->key, &tt_depth, &tt_bound, &tt_value, &tt_eval, &hashmove);
+		tt_hit = tt_probe(pos->key, ss->ply, &tt_depth, &tt_bound, &tt_value, &tt_eval, &hashmove);
 	}
 
 	/* Step 6. Initialize search relevant values used in pruning. */
@@ -266,7 +263,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 			: tt_hit && tt_eval != UNKNOWN ? tt_eval
 						       : evaluate(pos);
 	if (!tt_hit && eval != UNKNOWN)
-		tt_store(pos->key, 0, TT_NONE, UNKNOWN, eval, MOVE_NONE);
+		tt_store(pos->key, ss->ply, 0, TT_NONE, UNKNOWN, eval, MOVE_NONE);
 
 	improving = in_check && eval > (ss - 2)->eval;
 
@@ -480,7 +477,7 @@ move_loop:
 		tt_bound = best_value <= orig_alpha ? TT_UPPER
 			 : best_value >= beta       ? TT_LOWER
 						    : TT_EXACT;
-		tt_store(pos->key, depth, tt_bound, best_value, eval, bestmove);
+		tt_store(pos->key, ss->ply, depth, tt_bound, best_value, eval, bestmove);
 	}
 
 	return best_value;

@@ -47,6 +47,16 @@ static struct {
 	int age;
 } tt = {nullptr, 0, 0};
 
+INLINE int value_from(int value, int ply)
+{
+	return IS_MATE(value) ? value < 0 ? value - ply : value + ply : value;
+}
+
+INLINE int value_to(int value, int ply)
+{
+	return IS_MATE(value) ? value < 0 ? value + ply : value - ply : value;
+}
+
 void tt_init(size_t mb)
 {
 	size_t keysize = 16;
@@ -77,7 +87,7 @@ void tt_clear(void)
 	tt.age = 0;
 }
 
-bool tt_probe(u64 key, int *depth, enum tt_bound *bound, int *value, int *eval, enum move *move)
+bool tt_probe(u64 key, int ply, int *depth, enum tt_bound *bound, int *value, int *eval, enum move *move)
 {
 	size_t i;
 	struct tt_entry *et = tt.buckets[key & tt.mask].entries;
@@ -91,7 +101,7 @@ bool tt_probe(u64 key, int *depth, enum tt_bound *bound, int *value, int *eval, 
 
 		*depth = et->depth;
 		*bound = et->bound;
-		*value = et->value;
+		*value = value_from(et->value, ply);
 		*eval = et->eval;
 		*move = et->move;
 
@@ -101,7 +111,7 @@ bool tt_probe(u64 key, int *depth, enum tt_bound *bound, int *value, int *eval, 
 	return false;
 }
 
-void tt_store(u64 key, int depth, enum tt_bound bound, int value, int eval, enum move move)
+void tt_store(u64 key, int ply, int depth, enum tt_bound bound, int value, int eval, enum move move)
 {
 	size_t i;
 	struct tt_entry *et = tt.buckets[key & tt.mask].entries, *old = et;
@@ -125,7 +135,7 @@ void tt_store(u64 key, int depth, enum tt_bound bound, int value, int eval, enum
 
 	old->depth = depth;
 	old->bound = bound;
-	old->value = value;
+	old->value = value_to(value, ply);
 	old->eval = eval;
 	old->key = key;
 }

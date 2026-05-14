@@ -39,8 +39,8 @@ enum tt_bound {
 void tt_init(size_t mb);
 void tt_free(void);
 void tt_clear(void);
-bool tt_probe(u64 key, int *depth, enum tt_bound *bound, int *value, int *eval, enum move *move);
-void tt_store(u64 key, int depth, enum tt_bound bound, int value, int eval, enum move move);
+bool tt_probe(u64 key, int ply, int *depth, enum tt_bound *bound, int *value, int *eval, enum move *move);
+void tt_store(u64 key, int ply, int  depth, enum tt_bound  bound, int  value, int  eval, enum move  move);
 void tt_update(void);
 void tt_prefetch(u64 key);
 size_t tt_hashfull(void);
