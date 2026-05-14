@@ -253,7 +253,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 	 * idea to search the current position with shallower depth and get its
 	 * best move. At the same time we can get a better eval of the position.
 	 */
-	if (!tt_hit && depth >= 6 && (pvnode || cutnode)) {
+	if (ENABLE_IID && !tt_hit && depth >= 6 && (pvnode || cutnode)) {
 		(void)negamax(pos, ss, alpha, beta, depth * 2 / 3, cutnode);
 		tt_hit = tt_probe(pos->key, ss->ply, &tt_depth, &tt_bound, &tt_value, &tt_eval, &hashmove);
 	}
@@ -273,7 +273,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 	/* Step 7. Reverse Futility Pruning.
 	 * Eval is so high that we assume that it won't get below beta.
 	 */
-	if (depth <= sp->rfp_depth &&
+	if (ENABLE_RFP && depth <= sp->rfp_depth &&
 	    eval - sp->rfp_margin * MAX(0, depth - improving) >= beta)
 		return eval;
 
@@ -281,7 +281,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 	 * Position is so good that we can give the enemy a free move and still
 	 * be winning.
 	 */
-	if ((ss - 1)->move != MOVE_NULL && depth >= sp->nmp_depth &&
+	if (ENABLE_NMP && (ss - 1)->move != MOVE_NULL && depth >= sp->nmp_depth &&
 	    pos_non_pawn(pos, pos->stm)) {
 		R = 3 + (depth >= 8 && BB_SEVERAL(pos_non_pawn(pos, pos->stm)));
 		ss->move = MOVE_NULL;
@@ -314,7 +314,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 	 * ==================================================
 	 */
 	bound = (2.3263 * 127.8935 + beta - -4.981127) / 1.096462;
-	if (depth >= 6 && !IS_MATE(beta) &&
+	if (ENABLE_PROBCUT && depth >= 6 && !IS_MATE(beta) &&
 	    !(tt_hit && tt_depth >= depth - 3 && tt_value < bound)) {
 		mp_init(&mp, pos, hashmove, ss);
 		while ((move = mp_next(&mp, pos, true)) != MOVE_NONE) {
@@ -334,7 +334,7 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 
 			if (value >= bound) {
 				if (!tt_hit || tt_depth < depth - 3)
-					tt_store(pos->key, depth - 3, TT_LOWER, value, eval, move);
+					tt_store(pos->key, ss->ply, depth - 3, TT_LOWER, value, eval, move);
 				return value;
 			}
 		}
@@ -356,7 +356,7 @@ move_loop:
 		 * checked quite a few moves, then — assuming that the move
 		 * ordering is alright — we can prune other moves.
 		 */
-		if (!pvnode && mp.stage >= MP_STAGE_GENERATE_QUIET &&
+		if (ENABLE_LMP && !pvnode && mp.stage >= MP_STAGE_GENERATE_QUIET &&
 		    !in_check && pos_non_pawn(pos, pos->stm) &&
 		    orig_alpha < alpha &&
 		    movecount >= (3 + depth * depth) / (2 - improving))
@@ -379,15 +379,17 @@ move_loop:
 			 * If an expected cutnode has multiple children failing
 			 * high, we prune its subtree.
 			 */
-			if (value >= bound && bound >= beta)
+			if (ENABLE_MULTICUT && value >= bound && bound >= beta)
 				return bound;
 
+#if ENABLE_SE
 			if (!pvnode && value < bound - 17 && ss->dextensions <= 6)
 				extension = 2;
 			else if (value < bound)
 				extension = 1;
 			else if (tt_value <= alpha || beta <= tt_value)
 				extension = -1;
+#endif
 		}
 		new_depth = depth + extension;
 		ss->dextensions += extension > 1;
@@ -401,7 +403,7 @@ move_loop:
 		 * one. This assumes the move ordering is so good that the first
 		 * move is the best one.
 		 */
-		if (depth >= 2 && movecount > 1) {
+		if (ENABLE_LMR && depth >= 2 && movecount > 1) {
 			/* Quiet Late Move Reductions. */
 			if (is_quiet) {
 				R = lmr_reduction[MIN(depth, MAX_PLY)][MIN(movecount, 64)];

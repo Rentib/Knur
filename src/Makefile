@@ -29,6 +29,16 @@ else
 	CFLAGS += -DUSE_NNUE=0
 endif
 
+# Heuristics
+CFLAGS += -DENABLE_IID=1
+CFLAGS += -DENABLE_RFP=1
+CFLAGS += -DENABLE_NMP=1
+CFLAGS += -DENABLE_PROBCUT=1
+CFLAGS += -DENABLE_LMP=1
+CFLAGS += -DENABLE_SE=1
+CFLAGS += -DENABLE_MULTICUT=1
+CFLAGS += -DENABLE_LMR=1
+
 REQ = bitboards evaluate history movegen movepicker nnue perft position search \
       transposition uci util
 
