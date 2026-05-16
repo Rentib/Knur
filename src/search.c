@@ -50,6 +50,7 @@ struct search_params search_params = {
     .rfp_depth = 3,
     .rfp_margin = 47,
     .nmp_depth = 3,
+    .lmp_depth = 8,
     .lmr_base = 0.7844,
     .lmr_scale = 2.4696,
 };
@@ -356,9 +357,10 @@ move_loop:
 		 * checked quite a few moves, then — assuming that the move
 		 * ordering is alright — we can prune other moves.
 		 */
-		if (ENABLE_LMP && !pvnode && mp.stage >= MP_STAGE_GENERATE_QUIET &&
-		    !in_check && pos_non_pawn(pos, pos->stm) &&
-		    orig_alpha < alpha &&
+		if (ENABLE_LMP && !pvnode &&
+		    mp.stage >= MP_STAGE_GENERATE_QUIET &&
+		    depth <= sp->lmp_depth && !in_check &&
+		    pos_non_pawn(pos, pos->stm) && orig_alpha < alpha &&
 		    movecount >= (3 + depth * depth) / (2 - improving))
 			break;
 

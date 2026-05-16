@@ -53,6 +53,7 @@ struct search_params {
 	int rfp_depth;
 	int rfp_margin;
 	int nmp_depth;
+	int lmp_depth;
 	float lmr_base;
 	float lmr_scale;
 };
