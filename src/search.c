@@ -307,13 +307,13 @@ int negamax(struct position *pos, struct search_stack *ss, int alpha, int beta, 
 	 * Data gathered from 10^6 positions from selfplay games.
 	 * ==================================================
 	 * REGRESSION: v = v'*a + c + e
-	 * a:           1.096462
-	 * c:          -4.981127
-	 * Sigma:       127.8935
-	 * R2:          0.964498
+	 * a (v'):      1.132305
+	 * c (const):   -4.060770
+	 * Sigma:       149.2298
+	 * R2:          0.957577
 	 * ==================================================
 	 */
-	bound = (2.3263 * 127.8935 + beta - -4.981127) / 1.096462;
+	bound = (2.3263 * 149.2298 + beta - -4.060770) / 1.132305;
 	if (ENABLE_PROBCUT && depth >= 6 && !IS_MATE(beta) &&
 	    !(tt_hit && tt_depth >= depth - 3 && tt_value < bound)) {
 		mp_init(&mp, pos, hashmove, ss);
